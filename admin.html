@@ -1538,14 +1538,19 @@
             const phase = gameState.phase;
             const controllingTeam = buzzer.controllingTeam;
             
+            console.log(`isTeamButtonEnabled(${teamNumber}): phase=${phase}, controllingTeam=${controllingTeam}`);
+            
             switch (phase) {
                 case 'faceoff':
+                    // During face-off, admin can award answers to either team to determine control
+                    return true;
+                    
                 case 'countdown':
                 case 'buzzer_active':
-                    // No team buttons enabled during face-off
+                    // No team buttons enabled during countdown/buzzer
                     return false;
                     
-                case 'teamplay':
+                case 'main_game':
                     // Only controlling team's buttons enabled
                     return teamNumber === controllingTeam;
                     
@@ -1561,7 +1566,11 @@
 
         function isStrikeButtonEnabled() {
             const phase = gameState.phase;
-            return phase === 'teamplay' && buzzer.controllingTeam !== null;
+            const controllingTeam = buzzer.controllingTeam;
+            
+            console.log(`isStrikeButtonEnabled(): phase=${phase}, controllingTeam=${controllingTeam}`);
+            
+            return (phase === 'main_game' || phase === 'steal') && buzzer.controllingTeam !== null;
         }
 
         async function awardAnswer(teamNumber, answerIndex) {
@@ -1575,23 +1584,39 @@
                 // Reveal the answer
                 gameState.revealedAnswers[key] = true;
                 
-                // Award points to the team
-                if (teamNumber === 1) {
-                    gameState.team1Score += answer.points;
+                // If this is during face-off, set controlling team and transition to main game
+                if (gameState.phase === 'faceoff') {
+                    gameState.phase = 'main_game';
+                    buzzer.controllingTeam = teamNumber;
+                    
+                    await database.ref('gameState').update({
+                        revealedAnswers: gameState.revealedAnswers,
+                        phase: 'main_game',
+                        strikes: 0
+                    });
+                    await database.ref('buzzer/controllingTeam').set(teamNumber);
+                    
+                    // Mark this face-off as completed
+                    if (completedFaceoffs.indexOf(gameState.currentQuestion) === -1) {
+                        await database.ref('completedFaceoffs').push(gameState.currentQuestion);
+                    }
                 } else {
-                    gameState.team2Score += answer.points;
+                    // Regular answer reveal during main game/steal
+                    gameState.strikes = 0; // Reset strikes since they got an answer
+                    
+                    await database.ref('gameState').update({
+                        revealedAnswers: gameState.revealedAnswers,
+                        strikes: 0
+                    });
                 }
-                
-                // Reset strikes since they got an answer
-                gameState.strikes = 0;
-                
-                // Update game state
-                await database.ref('gameState').set(gameState);
                 
                 // Haptic feedback
                 if (navigator.vibrate) {
                     navigator.vibrate(50);
                 }
+                
+                // Update display to refresh button states
+                updateDisplay();
                 
             } catch (error) {
                 console.error('Error awarding answer:', error);
@@ -1603,25 +1628,37 @@
             
             try {
                 const newStrikes = (gameState.strikes || 0) + 1;
-                gameRef.child('gameState/strikes').set(newStrikes);
+                gameState.strikes = newStrikes;
+                
+                await database.ref('gameState/strikes').set(newStrikes);
                 
                 if (newStrikes >= 3) {
                     // Check for steal opportunity
-                    if (gameState.controllingTeam === 1 && teams.team2?.name) {
+                    if (buzzer.controllingTeam === 1 && teams.team2?.name) {
                         // Switch control to Team 2 for steal opportunity
-                        gameRef.child('gameState').update({
-                            controllingTeam: 2,
-                            strikes: 0,
-                            phase: 'steal'
+                        gameState.phase = 'steal';
+                        gameState.strikes = 0;
+                        buzzer.controllingTeam = 2;
+                        
+                        await database.ref('gameState').update({
+                            phase: 'steal',
+                            strikes: 0
                         });
+                        await database.ref('buzzer/controllingTeam').set(2);
+                        
                         alert(`3 strikes! ${teams.team2.name} gets a chance to steal!`);
-                    } else if (gameState.controllingTeam === 2 && teams.team1?.name) {
+                    } else if (buzzer.controllingTeam === 2 && teams.team1?.name) {
                         // Switch control to Team 1 for steal opportunity
-                        gameRef.child('gameState').update({
-                            controllingTeam: 1,
-                            strikes: 0,
-                            phase: 'steal'
+                        gameState.phase = 'steal';
+                        gameState.strikes = 0;
+                        buzzer.controllingTeam = 1;
+                        
+                        await database.ref('gameState').update({
+                            phase: 'steal',
+                            strikes: 0
                         });
+                        await database.ref('buzzer/controllingTeam').set(1);
+                        
                         alert(`3 strikes! ${teams.team1.name} gets a chance to steal!`);
                     } else {
                         // No other team or end of round
@@ -1634,6 +1671,9 @@
                     navigator.vibrate([50, 30, 50]);
                 }
                 
+                // Update display to refresh button states
+                updateDisplay();
+                
             } catch (error) {
                 console.error('Error adding strike:', error);
             }
@@ -1644,11 +1684,18 @@
             
             try {
                 // Set controlling team and switch to team play
-                gameState.phase = 'teamplay';
+                gameState.phase = 'main_game';
                 gameState.strikes = 0;
+                buzzer.controllingTeam = teamNumber;
                 
-                await database.ref('gameState').set(gameState);
+                await database.ref('gameState').update({
+                    phase: 'main_game',
+                    strikes: 0
+                });
                 await database.ref('buzzer/controllingTeam').set(teamNumber);
+                
+                // Update display to refresh button states  
+                updateDisplay();
                 
             } catch (error) {
                 console.error('Error awarding control:', error);
@@ -1687,14 +1734,17 @@
                     currentQuestionAnswers[key].revealed)) {
                     
                     // Move to main game for the controlling team
-                    gameRef.child('gameState').update({
+                    gameState.phase = 'main_game';
+                    gameState.strikes = 0;
+                    
+                    database.ref('gameState').update({
                         phase: 'main_game',
                         strikes: 0
                     });
                     
                     // Mark this face-off as completed
                     if (completedFaceoffs.indexOf(currentQuestion) === -1) {
-                        gameRef.child('completedFaceoffs').push(currentQuestion);
+                        database.ref('completedFaceoffs').push(currentQuestion);
                     }
                 }
             } else if (gameState.phase === 'main_game') {
@@ -1731,7 +1781,7 @@
             const currentTeam1Score = teams.team1?.score || 0;
             const currentTeam2Score = teams.team2?.score || 0;
             
-            gameRef.child('teams').update({
+            database.ref('teams').update({
                 'team1/score': currentTeam1Score + team1Points,
                 'team2/score': currentTeam2Score + team2Points
             });
@@ -1740,11 +1790,15 @@
             alert(`Question Complete!\n${teams.team1?.name || 'Team 1'}: +${team1Points} points\n${teams.team2?.name || 'Team 2'}: +${team2Points} points\n\nClick "Next Question" to continue.`);
             
             // Reset phase
-            gameRef.child('gameState').update({
+            gameState.phase = 'setup';
+            gameState.strikes = 0;
+            buzzer.controllingTeam = null;
+            
+            database.ref('gameState').update({
                 phase: 'setup',
-                strikes: 0,
-                controllingTeam: null
+                strikes: 0
             });
+            database.ref('buzzer/controllingTeam').remove();
         }
     </script>
 </body>
