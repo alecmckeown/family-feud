@@ -220,60 +220,6 @@
             float: right;
         }
         
-        .scores-section {
-            background: rgba(0,0,0,0.2);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .scores-display {
-            display: flex;
-            justify-content: space-around;
-            margin-bottom: 20px;
-        }
-        
-        .team-score {
-            text-align: center;
-        }
-        
-        .team-name {
-            font-size: 1em;
-            margin-bottom: 5px;
-            color: #FFD700;
-        }
-        
-        .score-value {
-            font-size: 2em;
-            font-weight: bold;
-        }
-        
-        .score-controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .score-btn {
-            background: #FF9800;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        
-        .score-btn:active {
-            transform: scale(0.95);
-        }
-        
-        .score-btn.negative {
-            background: #f44336;
-        }
-        
         .control-section {
             text-align: center;
         }
@@ -762,32 +708,6 @@
                 <div class="section-title">Reveal Answers</div>
                 <div id="answer-buttons">
                     <!-- Answer buttons will be populated by JavaScript -->
-                </div>
-            </div>
-            
-            <div class="scores-section">
-                <div class="section-title">Scores</div>
-                <div class="scores-display">
-                    <div class="team-score">
-                        <div class="team-name">TEAM 1</div>
-                        <div class="score-value" id="team1-score">0</div>
-                    </div>
-                    <div class="team-score">
-                        <div class="team-name">TEAM 2</div>
-                        <div class="score-value" id="team2-score">0</div>
-                    </div>
-                </div>
-                
-                <div class="score-controls">
-                    <button class="score-btn" onclick="addScore(1, 10)">Team 1 +10</button>
-                    <button class="score-btn" onclick="addScore(2, 10)">Team 2 +10</button>
-                    <button class="score-btn negative" onclick="addScore(1, -10)">Team 1 -10</button>
-                    <button class="score-btn negative" onclick="addScore(2, -10)">Team 2 -10</button>
-                </div>
-                
-                <div class="quick-actions">
-                    <button class="quick-btn" onclick="addScore(1, 25)">Team 1 +25</button>
-                    <button class="quick-btn" onclick="addScore(2, 25)">Team 2 +25</button>
                 </div>
             </div>
             
@@ -1285,15 +1205,11 @@
             document.getElementById('prev-btn').disabled = gameState.currentQuestion === 0;
             document.getElementById('next-btn').disabled = gameState.currentQuestion === loadedQuestions.length - 1;
             
-            // Update scores
-            document.getElementById('team1-score').textContent = gameState.team1Score;
-            document.getElementById('team2-score').textContent = gameState.team2Score;
-            
             // Update phase display
             updatePhaseDisplay();
             updateFaceoffControls();
             
-            // Update answer buttons (we'll modify this in Phase 2)
+            // Update answer buttons with new team-based structure
             const answerButtons = document.getElementById('answer-buttons');
             answerButtons.innerHTML = '';
             
@@ -1301,13 +1217,43 @@
                 const key = `q${gameState.currentQuestion}_a${index}`;
                 const isRevealed = gameState.revealedAnswers[key];
                 
-                const button = document.createElement('button');
-                button.className = `answer-btn ${isRevealed ? 'revealed' : ''}`;
-                button.textContent = `${answer.rank}. ${answer.text} (${answer.points} pts)`;
-                button.disabled = isRevealed;
-                button.onclick = () => revealAnswer(index);
+                // Create answer row container
+                const answerRow = document.createElement('div');
+                answerRow.className = 'answer-row';
                 
-                answerButtons.appendChild(button);
+                // Answer info display
+                const answerInfo = document.createElement('div');
+                answerInfo.className = 'answer-info';
+                answerInfo.textContent = `${answer.rank}. ${answer.text} (${answer.points} pts)`;
+                
+                // Team 1 button
+                const team1Btn = document.createElement('button');
+                team1Btn.className = 'team-answer-btn team1';
+                team1Btn.textContent = teams.team1?.name || 'Team 1';
+                team1Btn.disabled = isRevealed || !isTeamButtonEnabled(1);
+                team1Btn.onclick = () => awardAnswer(1, index);
+                
+                // Team 2 button
+                const team2Btn = document.createElement('button');
+                team2Btn.className = 'team-answer-btn team2';
+                team2Btn.textContent = teams.team2?.name || 'Team 2';
+                team2Btn.disabled = isRevealed || !isTeamButtonEnabled(2);
+                team2Btn.onclick = () => awardAnswer(2, index);
+                
+                // Strike button (X)
+                const strikeBtn = document.createElement('button');
+                strikeBtn.className = 'strike-btn';
+                strikeBtn.textContent = 'X';
+                strikeBtn.disabled = !isStrikeButtonEnabled();
+                strikeBtn.onclick = () => addStrike();
+                
+                // Add info first, then buttons
+                answerRow.appendChild(answerInfo);
+                answerRow.appendChild(team1Btn);
+                answerRow.appendChild(team2Btn);
+                answerRow.appendChild(strikeBtn);
+                
+                answerButtons.appendChild(answerRow);
             });
         }
 
@@ -1433,6 +1379,11 @@
                 document.getElementById('buzz-winner-text').textContent = winnerName;
                 document.getElementById('buzz-time-text').textContent = buzzTime;
                 document.getElementById('buzz-results').style.display = 'block';
+                
+                // Auto-award control to the buzzer winner
+                if (gameState.phase === 'buzzer_active') {
+                    awardControlFromBuzz(winnerTeam);
+                }
             } else {
                 document.getElementById('buzz-results').style.display = 'none';
             }
@@ -1582,6 +1533,128 @@
             }
         }
 
+        // New functions for team-based answer awarding and phase management
+        function isTeamButtonEnabled(teamNumber) {
+            const phase = gameState.phase;
+            const controllingTeam = buzzer.controllingTeam;
+            
+            switch (phase) {
+                case 'faceoff':
+                case 'countdown':
+                case 'buzzer_active':
+                    // No team buttons enabled during face-off
+                    return false;
+                    
+                case 'teamplay':
+                    // Only controlling team's buttons enabled
+                    return teamNumber === controllingTeam;
+                    
+                case 'steal':
+                    // Only non-controlling team's buttons enabled
+                    return teamNumber !== controllingTeam;
+                    
+                default:
+                    // Setup phase - no buttons enabled
+                    return false;
+            }
+        }
+
+        function isStrikeButtonEnabled() {
+            const phase = gameState.phase;
+            return phase === 'teamplay' && buzzer.controllingTeam !== null;
+        }
+
+        async function awardAnswer(teamNumber, answerIndex) {
+            if (!database) return;
+            
+            try {
+                const currentQ = loadedQuestions[gameState.currentQuestion];
+                const answer = currentQ.answers[answerIndex];
+                const key = `q${gameState.currentQuestion}_a${answerIndex}`;
+                
+                // Reveal the answer
+                gameState.revealedAnswers[key] = true;
+                
+                // Award points to the team
+                if (teamNumber === 1) {
+                    gameState.team1Score += answer.points;
+                } else {
+                    gameState.team2Score += answer.points;
+                }
+                
+                // Reset strikes since they got an answer
+                gameState.strikes = 0;
+                
+                // Update game state
+                await database.ref('gameState').set(gameState);
+                
+                // Haptic feedback
+                if (navigator.vibrate) {
+                    navigator.vibrate(50);
+                }
+                
+            } catch (error) {
+                console.error('Error awarding answer:', error);
+            }
+        }
+
+        async function addStrike() {
+            if (!database) return;
+            
+            try {
+                const newStrikes = (gameState.strikes || 0) + 1;
+                gameRef.child('gameState/strikes').set(newStrikes);
+                
+                if (newStrikes >= 3) {
+                    // Check for steal opportunity
+                    if (gameState.controllingTeam === 1 && teams.team2?.name) {
+                        // Switch control to Team 2 for steal opportunity
+                        gameRef.child('gameState').update({
+                            controllingTeam: 2,
+                            strikes: 0,
+                            phase: 'steal'
+                        });
+                        alert(`3 strikes! ${teams.team2.name} gets a chance to steal!`);
+                    } else if (gameState.controllingTeam === 2 && teams.team1?.name) {
+                        // Switch control to Team 1 for steal opportunity
+                        gameRef.child('gameState').update({
+                            controllingTeam: 1,
+                            strikes: 0,
+                            phase: 'steal'
+                        });
+                        alert(`3 strikes! ${teams.team1.name} gets a chance to steal!`);
+                    } else {
+                        // No other team or end of round
+                        completePhase();
+                    }
+                }
+                
+                // Haptic feedback
+                if (navigator.vibrate) {
+                    navigator.vibrate([50, 30, 50]);
+                }
+                
+            } catch (error) {
+                console.error('Error adding strike:', error);
+            }
+        }
+
+        async function awardControlFromBuzz(teamNumber) {
+            if (!database) return;
+            
+            try {
+                // Set controlling team and switch to team play
+                gameState.phase = 'teamplay';
+                gameState.strikes = 0;
+                
+                await database.ref('gameState').set(gameState);
+                await database.ref('buzzer/controllingTeam').set(teamNumber);
+                
+            } catch (error) {
+                console.error('Error awarding control:', error);
+            }
+        }
+
         // Add touch feedback to all buttons
         document.addEventListener('DOMContentLoaded', () => {
             initializeGame();
@@ -1606,6 +1679,73 @@
                 }
             });
         });
+
+        function completePhase() {
+            if (gameState.phase === 'face_off') {
+                // Check if face-off is complete (at least one answer revealed)
+                if (Object.keys(currentQuestionAnswers || {}).some(key => 
+                    currentQuestionAnswers[key].revealed)) {
+                    
+                    // Move to main game for the controlling team
+                    gameRef.child('gameState').update({
+                        phase: 'main_game',
+                        strikes: 0
+                    });
+                    
+                    // Mark this face-off as completed
+                    if (completedFaceoffs.indexOf(currentQuestion) === -1) {
+                        gameRef.child('completedFaceoffs').push(currentQuestion);
+                    }
+                }
+            } else if (gameState.phase === 'main_game') {
+                // Check if all answers are revealed or max strikes reached
+                const allAnswers = Object.keys(currentQuestionAnswers || {});
+                const revealedAnswers = allAnswers.filter(key => 
+                    currentQuestionAnswers[key].revealed);
+                
+                if (revealedAnswers.length === allAnswers.length || gameState.strikes >= 3) {
+                    // Show completion modal or move to next question
+                    showQuestionCompleteModal();
+                }
+            }
+        }
+
+        function showQuestionCompleteModal() {
+            // Calculate points for this question
+            const allAnswers = Object.keys(currentQuestionAnswers || {});
+            const revealedAnswers = allAnswers.filter(key => 
+                currentQuestionAnswers[key].revealed);
+            
+            let team1Points = 0, team2Points = 0;
+            
+            revealedAnswers.forEach(key => {
+                const answer = currentQuestionAnswers[key];
+                if (answer.awardedTo === 1) {
+                    team1Points += answer.points;
+                } else if (answer.awardedTo === 2) {
+                    team2Points += answer.points;
+                }
+            });
+            
+            // Update total scores
+            const currentTeam1Score = teams.team1?.score || 0;
+            const currentTeam2Score = teams.team2?.score || 0;
+            
+            gameRef.child('teams').update({
+                'team1/score': currentTeam1Score + team1Points,
+                'team2/score': currentTeam2Score + team2Points
+            });
+            
+            // Show completion info
+            alert(`Question Complete!\n${teams.team1?.name || 'Team 1'}: +${team1Points} points\n${teams.team2?.name || 'Team 2'}: +${team2Points} points\n\nClick "Next Question" to continue.`);
+            
+            // Reset phase
+            gameRef.child('gameState').update({
+                phase: 'setup',
+                strikes: 0,
+                controllingTeam: null
+            });
+        }
     </script>
 </body>
 </html>
