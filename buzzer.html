@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Feud - Buzzer</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial Black', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        
+        .buzzer-container {
+            max-width: 500px;
+            margin: 0 auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .title {
+            font-size: 2.5em;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.8;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .connected {
+            background: rgba(76, 175, 80, 0.8);
+        }
+        
+        .disconnected {
+            background: rgba(244, 67, 54, 0.8);
+        }
+        
+        .loading {
+            background: rgba(255, 193, 7, 0.8);
+        }
+        
+        .game-phase {
+            background: rgba(255,255,255,0.15);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .phase-title {
+            font-size: 1.1em;
+            color: #FFD700;
+            margin-bottom: 10px;
+        }
+        
+        .phase-text {
+            font-size: 1.3em;
+            line-height: 1.4;
+        }
+        
+        .countdown {
+            font-size: 4em;
+            font-weight: bold;
+            color: #FF4444;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .teams-status {
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .teams-title {
+            font-size: 1.3em;
+            color: #FFD700;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .team-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+        
+        .team-label {
+            font-weight: bold;
+            color: #FFD700;
+        }
+        
+        .team-name {
+            font-size: 1.1em;
+        }
+        
+        .team-name.empty {
+            font-style: italic;
+            opacity: 0.6;
+        }
+        
+        .team-registration {
+            margin-bottom: 30px;
+        }
+        
+        .create-team-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .team-input {
+            width: 100%;
+            padding: 15px;
+            border-radius: 10px;
+            border: none;
+            font-size: 16px;
+            text-align: center;
+            background: white;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .team-input:focus {
+            outline: 3px solid #FFD700;
+        }
+        
+        .create-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+        }
+        
+        .create-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .create-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .join-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .join-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+            text-align: center;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .join-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .switch-team {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .switch-btn {
+            background: #FF9800;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .switch-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .buzzer-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        .buzz-button {
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            border: 8px solid #FFD700;
+            background: linear-gradient(135deg, #FF4444 0%, #CC0000 100%);
+            color: white;
+            font-size: 2.5em;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .buzz-button:active {
+            transform: scale(0.95);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+        }
+        
+        .buzz-button:disabled {
+            background: #666;
+            border-color: #999;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        .buzz-button.buzzed {
+            background: #666;
+            border-color: #999;
+            animation: buzz-flash 0.5s ease;
+        }
+        
+        @keyframes buzz-flash {
+            0%, 100% { background: #666; }
+            50% { background: #FFD700; }
+        }
+        
+        .buzz-status {
+            text-align: center;
+            font-size: 1.2em;
+            margin-top: 20px;
+            min-height: 30px;
+        }
+        
+        .buzz-winner {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        .buzz-locked {
+            color: #FF4444;
+            font-style: italic;
+        }
+        
+        @media (max-width: 480px) {
+            .title { font-size: 2em; }
+            .buzz-button {
+                width: 200px;
+                height: 200px;
+                font-size: 2em;
+            }
+            .join-section {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .no-questions {
+            text-align: center;
+            padding: 50px 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .no-questions-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        .no-questions-text {
+            font-size: 1.2em;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connection-status">Connecting...</div>
+    
+    <div class="buzzer-container">
+        <div class="header">
+            <h1 class="title">BUZZER</h1>
+            <div class="subtitle">Family Feud</div>
+        </div>
+        
+        <!-- No Questions State -->
+        <div class="no-questions" id="no-questions-state">
+            <div class="no-questions-icon">⏳</div>
+            <div class="no-questions-text">Waiting for game to start...</div>
+        </div>
+        
+        <!-- Game Content (hidden until questions loaded) -->
+        <div id="game-content" style="display: none;">
+            <!-- Current Game Phase -->
+            <div class="game-phase">
+                <div class="phase-title">Current Phase</div>
+                <div class="phase-text" id="phase-display">Waiting for admin...</div>
+                <div id="countdown-display" style="display: none;">
+                    <div class="countdown" id="countdown-timer">5</div>
+                </div>
+            </div>
+            
+            <!-- Teams Status -->
+            <div class="teams-status">
+                <div class="teams-title">Team Registration</div>
+                <div class="team-info">
+                    <div class="team-label">Team 1:</div>
+                    <div class="team-name" id="team1-name">Not registered</div>
+                </div>
+                <div class="team-info">
+                    <div class="team-label">Team 2:</div>
+                    <div class="team-name" id="team2-name">Not registered</div>
+                </div>
+            </div>
+            
+            <!-- Team Registration Section -->
+            <div class="team-registration" id="team-registration">
+                <!-- Create Team (shown when < 2 teams) -->
+                <div class="create-team-section" id="create-team-section">
+                    <div class="input-group">
+                        <input type="text" 
+                               class="team-input" 
+                               id="team-name-input" 
+                               placeholder="Enter team name..." 
+                               maxlength="20">
+                    </div>
+                    <button class="create-btn" id="create-team-btn" onclick="createTeam()">
+                        Create Team
+                    </button>
+                </div>
+                
+                <!-- Join Team (shown when 2 teams exist) -->
+                <div class="join-section" id="join-section" style="display: none;">
+                    <button class="join-btn" id="join-team1-btn" onclick="joinTeam(1)">
+                        Join<br><span id="join-team1-name">Team 1</span>
+                    </button>
+                    <button class="join-btn" id="join-team2-btn" onclick="joinTeam(2)">
+                        Join<br><span id="join-team2-name">Team 2</span>
+                    </button>
+                </div>
+                
+                <!-- Switch Team (shown when user has joined a team) -->
+                <div class="switch-team" id="switch-team-section" style="display: none;">
+                    <button class="switch-btn" onclick="switchTeam()">Switch Team</button>
+                </div>
+            </div>
+            
+            <!-- Buzzer Section -->
+            <div class="buzzer-section">
+                <button class="buzz-button" id="buzz-button" onclick="buzzIn()" disabled>
+                    BUZZ IN
+                </button>
+                <div class="buzz-status" id="buzz-status"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBI0FZRNrYyCjVWic6YEMmZ_bbHE4IAhcY",
+            authDomain: "resident-family-feud.firebaseapp.com",
+            databaseURL: "https://resident-family-feud-default-rtdb.firebaseio.com",
+            projectId: "resident-family-feud",
+            storageBucket: "resident-family-feud.firebasestorage.app",
+            messagingSenderId: "895685579158",
+            appId: "1:895685579158:web:1267859ee412bfe453cdb7"
+        };
+
+        // Initialize Firebase
+        let database;
+        let isConnected = false;
+        
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            
+            // Monitor connection status
+            const connectedRef = database.ref(".info/connected");
+            connectedRef.on("value", (snap) => {
+                isConnected = snap.val();
+                updateConnectionStatus();
+            });
+            
+            console.log("Firebase initialized");
+        } catch (error) {
+            console.log("Firebase not configured, using local mode");
+            updateConnectionStatus();
+        }
+
+        // Local state
+        let gameData = {
+            teams: { team1: null, team2: null },
+            buzzer: { active: false, firstBuzz: null, controllingTeam: null },
+            gameState: { phase: 'setup' },
+            hasQuestions: false
+        };
+        let userTeam = null; // Which team this user has joined
+        let countdownInterval = null;
+
+        function updateConnectionStatus() {
+            const statusEl = document.getElementById('connection-status');
+            if (database && isConnected) {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'connection-status connected';
+            } else if (database && !isConnected) {
+                statusEl.textContent = 'Connecting...';
+                statusEl.className = 'connection-status loading';
+            } else {
+                statusEl.textContent = 'Offline';
+                statusEl.className = 'connection-status disconnected';
+            }
+        }
+
+        function initializeGame() {
+            if (!database) {
+                document.getElementById('no-questions-state').style.display = 'block';
+                document.getElementById('game-content').style.display = 'none';
+                return;
+            }
+
+            // Listen for question set (to know if game has started)
+            database.ref('questionSet').on('value', (snapshot) => {
+                const hasQuestions = snapshot.exists() && snapshot.val().questions && snapshot.val().questions.length > 0;
+                gameData.hasQuestions = hasQuestions;
+                
+                if (hasQuestions) {
+                    document.getElementById('no-questions-state').style.display = 'none';
+                    document.getElementById('game-content').style.display = 'block';
+                } else {
+                    document.getElementById('no-questions-state').style.display = 'block';
+                    document.getElementById('game-content').style.display = 'none';
+                }
+            });
+
+            // Listen for teams
+            database.ref('teams').on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    gameData.teams = snapshot.val();
+                } else {
+                    gameData.teams = { team1: null, team2: null };
+                }
+                updateTeamsDisplay();
+            });
+
+            // Listen for buzzer state
+            database.ref('buzzer').on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    gameData.buzzer = snapshot.val();
+                } else {
+                    gameData.buzzer = { active: false, firstBuzz: null, controllingTeam: null };
+                }
+                updateBuzzerState();
+            });
+
+            // Listen for game state (including phase and countdown)
+            database.ref('gameState').on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    gameData.gameState = snapshot.val();
+                } else {
+                    gameData.gameState = { phase: 'setup' };
+                }
+                updatePhaseDisplay();
+            });
+
+            // Listen for countdown
+            database.ref('countdown').on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    const countdownData = snapshot.val();
+                    if (countdownData.active) {
+                        startCountdownDisplay(countdownData.timeLeft);
+                    } else {
+                        stopCountdownDisplay();
+                    }
+                } else {
+                    stopCountdownDisplay();
+                }
+            });
+        }
+
+        function updateTeamsDisplay() {
+            // Update team name displays
+            const team1Name = gameData.teams.team1?.name || 'Not registered';
+            const team2Name = gameData.teams.team2?.name || 'Not registered';
+            
+            document.getElementById('team1-name').textContent = team1Name;
+            document.getElementById('team2-name').textContent = team2Name;
+            
+            if (!gameData.teams.team1) {
+                document.getElementById('team1-name').className = 'team-name empty';
+            } else {
+                document.getElementById('team1-name').className = 'team-name';
+            }
+            
+            if (!gameData.teams.team2) {
+                document.getElementById('team2-name').className = 'team-name empty';
+            } else {
+                document.getElementById('team2-name').className = 'team-name';
+            }
+
+            // Update registration interface
+            const registeredTeams = [gameData.teams.team1, gameData.teams.team2].filter(t => t !== null).length;
+            
+            if (registeredTeams < 2) {
+                // Show create team interface
+                document.getElementById('create-team-section').style.display = 'block';
+                document.getElementById('join-section').style.display = 'none';
+            } else {
+                // Show join team interface
+                document.getElementById('create-team-section').style.display = 'none';
+                document.getElementById('join-section').style.display = 'grid';
+                
+                // Update join button text
+                document.getElementById('join-team1-name').textContent = team1Name;
+                document.getElementById('join-team2-name').textContent = team2Name;
+            }
+
+            // Show/hide switch team button
+            if (userTeam) {
+                document.getElementById('switch-team-section').style.display = 'block';
+            } else {
+                document.getElementById('switch-team-section').style.display = 'none';
+            }
+        }
+
+        function updatePhaseDisplay() {
+            const phase = gameData.gameState.phase || 'setup';
+            let phaseText = '';
+
+            switch (phase) {
+                case 'setup':
+                    phaseText = 'Game Setup';
+                    break;
+                case 'faceoff':
+                    phaseText = 'Face-off in Progress';
+                    break;
+                case 'countdown':
+                    phaseText = 'Get Ready!';
+                    break;
+                case 'buzzer_active':
+                    phaseText = 'BUZZER ACTIVE!';
+                    break;
+                case 'teamplay':
+                    const controllingTeamName = gameData.buzzer.controllingTeam === 1 ? 
+                        gameData.teams.team1?.name || 'Team 1' : 
+                        gameData.teams.team2?.name || 'Team 2';
+                    phaseText = `${controllingTeamName} Playing`;
+                    break;
+                case 'steal':
+                    const stealingTeamName = gameData.buzzer.controllingTeam === 1 ? 
+                        gameData.teams.team2?.name || 'Team 2' : 
+                        gameData.teams.team1?.name || 'Team 1';
+                    phaseText = `${stealingTeamName} Steal Opportunity`;
+                    break;
+                default:
+                    phaseText = 'Waiting for admin...';
+            }
+
+            document.getElementById('phase-display').textContent = phaseText;
+        }
+
+        function updateBuzzerState() {
+            const buzzButton = document.getElementById('buzz-button');
+            const buzzStatus = document.getElementById('buzz-status');
+
+            if (gameData.buzzer.active && !gameData.buzzer.firstBuzz) {
+                // Buzzer is active, enable button
+                buzzButton.disabled = false;
+                buzzButton.className = 'buzz-button';
+                buzzStatus.textContent = '';
+            } else if (gameData.buzzer.firstBuzz) {
+                // Someone has buzzed
+                buzzButton.disabled = true;
+                buzzButton.className = 'buzz-button buzzed';
+                
+                const winnerTeam = gameData.buzzer.firstBuzz.team;
+                const winnerName = winnerTeam === 1 ? 
+                    gameData.teams.team1?.name || 'Team 1' : 
+                    gameData.teams.team2?.name || 'Team 2';
+                
+                if (gameData.buzzer.firstBuzz.team === userTeam) {
+                    buzzStatus.innerHTML = `<span class="buzz-winner">You buzzed first!</span>`;
+                } else {
+                    buzzStatus.innerHTML = `<span class="buzz-locked">${winnerName} buzzed first</span>`;
+                }
+            } else {
+                // Buzzer not active
+                buzzButton.disabled = true;
+                buzzButton.className = 'buzz-button';
+                buzzStatus.textContent = '';
+            }
+        }
+
+        function startCountdownDisplay(timeLeft) {
+            stopCountdownDisplay(); // Clear any existing countdown
+            
+            document.getElementById('countdown-display').style.display = 'block';
+            document.getElementById('countdown-timer').textContent = timeLeft;
+            
+            countdownInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('countdown-timer').textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    stopCountdownDisplay();
+                }
+            }, 1000);
+        }
+
+        function stopCountdownDisplay() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            document.getElementById('countdown-display').style.display = 'none';
+        }
+
+        async function createTeam() {
+            const input = document.getElementById('team-name-input');
+            const teamName = input.value.trim();
+            
+            if (!teamName) {
+                alert('Please enter a team name');
+                return;
+            }
+
+            if (!database) {
+                alert('Not connected to database');
+                return;
+            }
+
+            try {
+                // Determine which team slot to use
+                let teamSlot = null;
+                if (!gameData.teams.team1) {
+                    teamSlot = 'team1';
+                } else if (!gameData.teams.team2) {
+                    teamSlot = 'team2';
+                } else {
+                    alert('Both teams are already registered');
+                    return;
+                }
+
+                // Create the team
+                await database.ref(`teams/${teamSlot}`).set({
+                    name: teamName
+                });
+
+                // Join the team we just created
+                userTeam = teamSlot === 'team1' ? 1 : 2;
+                input.value = '';
+                
+                // Haptic feedback
+                if (navigator.vibrate) {
+                    navigator.vibrate(50);
+                }
+
+            } catch (error) {
+                console.error('Error creating team:', error);
+                alert('Error creating team. Please try again.');
+            }
+        }
+
+        function joinTeam(teamNumber) {
+            userTeam = teamNumber;
+            
+            // Haptic feedback
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+            
+            updateTeamsDisplay();
+        }
+
+        function switchTeam() {
+            if (userTeam === 1) {
+                userTeam = 2;
+            } else if (userTeam === 2) {
+                userTeam = 1;
+            } else {
+                userTeam = null;
+            }
+            
+            updateTeamsDisplay();
+        }
+
+        async function buzzIn() {
+            if (!database || !gameData.buzzer.active || gameData.buzzer.firstBuzz || !userTeam) {
+                return;
+            }
+
+            try {
+                // Atomic transaction to ensure only first buzz wins
+                const result = await database.ref('buzzer/firstBuzz').transaction((currentData) => {
+                    if (currentData === null) {
+                        // No one has buzzed yet, we win!
+                        return {
+                            team: userTeam,
+                            timestamp: Date.now()
+                        };
+                    } else {
+                        // Someone already buzzed, abort transaction
+                        return undefined;
+                    }
+                });
+
+                if (result.committed) {
+                    // We successfully buzzed first!
+                    console.log('Buzzed in successfully!');
+                    
+                    // Strong haptic feedback for success
+                    if (navigator.vibrate) {
+                        navigator.vibrate([100, 50, 100]);
+                    }
+                } else {
+                    // Someone else got there first
+                    console.log('Someone else buzzed first');
+                    
+                    // Light haptic feedback for failure
+                    if (navigator.vibrate) {
+                        navigator.vibrate(30);
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error buzzing in:', error);
+            }
+        }
+
+        // Handle enter key in team name input
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeGame();
+            
+            const teamInput = document.getElementById('team-name-input');
+            teamInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    createTeam();
+                }
+            });
+            
+            // Enable/disable create button based on input
+            teamInput.addEventListener('input', () => {
+                const createBtn = document.getElementById('create-team-btn');
+                createBtn.disabled = !teamInput.value.trim();
+            });
+        });
+    </script>
+</body>
+</html>
