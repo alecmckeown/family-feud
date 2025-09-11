@@ -97,44 +97,7 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
         
-        .teams-status {
-            background: rgba(0,0,0,0.2);
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 30px;
-        }
-        
-        .teams-title {
-            font-size: 1.3em;
-            color: #FFD700;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .team-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            padding: 15px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-        }
-        
-        .team-label {
-            font-weight: bold;
-            color: #FFD700;
-        }
-        
-        .team-name {
-            font-size: 1.1em;
-        }
-        
-        .team-name.empty {
-            font-style: italic;
-            opacity: 0.6;
-        }
-        
-        .team-registration {
+        #team-registration {
             margin-bottom: 30px;
         }
         
@@ -214,26 +177,6 @@
         
         .join-btn:active {
             transform: scale(0.98);
-        }
-        
-        .switch-team {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .switch-btn {
-            background: #FF9800;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .switch-btn:active {
-            transform: scale(0.95);
         }
         
         .buzzer-section {
@@ -338,11 +281,6 @@
     <div class="connection-status" id="connection-status">Connecting...</div>
     
     <div class="buzzer-container">
-        <div class="header">
-            <h1 class="title">BUZZER</h1>
-            <div class="subtitle">Family Feud</div>
-        </div>
-        
         <!-- No Questions State -->
         <div class="no-questions" id="no-questions-state">
             <div class="no-questions-icon">⏳</div>
@@ -351,6 +289,11 @@
         
         <!-- Game Content (hidden until questions loaded) -->
         <div id="game-content" style="display: none;">
+            <!-- Team Name Display (shown when user has a team) -->
+            <div class="header" id="team-header" style="display: none;">
+                <h1 class="title" id="user-team-name">Team Name</h1>
+            </div>
+            
             <!-- Current Game Phase -->
             <div class="game-phase">
                 <div class="phase-title">Current Phase</div>
@@ -360,22 +303,9 @@
                 </div>
             </div>
             
-            <!-- Teams Status -->
-            <div class="teams-status">
-                <div class="teams-title">Team Registration</div>
-                <div class="team-info">
-                    <div class="team-label">Team 1:</div>
-                    <div class="team-name" id="team1-name">Not registered</div>
-                </div>
-                <div class="team-info">
-                    <div class="team-label">Team 2:</div>
-                    <div class="team-name" id="team2-name">Not registered</div>
-                </div>
-            </div>
-            
-            <!-- Team Registration Section -->
-            <div class="team-registration" id="team-registration">
-                <!-- Create Team (shown when < 2 teams) -->
+            <!-- Simple Team Registration -->
+            <div id="team-registration">
+                <!-- Create Team (shown when need to create) -->
                 <div class="create-team-section" id="create-team-section">
                     <div class="input-group">
                         <input type="text" 
@@ -397,11 +327,6 @@
                     <button class="join-btn" id="join-team2-btn" onclick="joinTeam(2)">
                         Join<br><span id="join-team2-name">Team 2</span>
                     </button>
-                </div>
-                
-                <!-- Switch Team (shown when user has joined a team) -->
-                <div class="switch-team" id="switch-team-section" style="display: none;">
-                    <button class="switch-btn" onclick="switchTeam()">Switch Team</button>
                 </div>
             </div>
             
@@ -458,6 +383,25 @@
         let userTeam = null; // Which team this user has joined
         let countdownInterval = null;
 
+        // Device-specific state management
+        function getUserTeam() {
+            return localStorage.getItem('familyFeud_userTeam');
+        }
+
+        function setUserTeam(teamNumber) {
+            if (teamNumber) {
+                localStorage.setItem('familyFeud_userTeam', teamNumber.toString());
+            } else {
+                localStorage.removeItem('familyFeud_userTeam');
+            }
+            userTeam = teamNumber;
+        }
+
+        function clearUserTeamData() {
+            localStorage.removeItem('familyFeud_userTeam');
+            userTeam = null;
+        }
+
         function updateConnectionStatus() {
             const statusEl = document.getElementById('connection-status');
             if (database && isConnected) {
@@ -473,6 +417,12 @@
         }
 
         function initializeGame() {
+            // Restore user team from localStorage
+            const savedTeam = getUserTeam();
+            if (savedTeam) {
+                userTeam = parseInt(savedTeam);
+            }
+
             if (!database) {
                 document.getElementById('no-questions-state').style.display = 'block';
                 document.getElementById('game-content').style.display = 'none';
@@ -487,6 +437,8 @@
                 if (hasQuestions) {
                     document.getElementById('no-questions-state').style.display = 'none';
                     document.getElementById('game-content').style.display = 'block';
+                    // Update teams display when game content becomes visible
+                    updateTeamsDisplay();
                 } else {
                     document.getElementById('no-questions-state').style.display = 'block';
                     document.getElementById('game-content').style.display = 'none';
@@ -499,6 +451,8 @@
                     gameData.teams = snapshot.val();
                 } else {
                     gameData.teams = { team1: null, team2: null };
+                    // Clear user team data if teams are cleared globally
+                    clearUserTeamData();
                 }
                 updateTeamsDisplay();
             });
@@ -539,47 +493,37 @@
         }
 
         function updateTeamsDisplay() {
-            // Update team name displays
-            const team1Name = gameData.teams.team1?.name || 'Not registered';
-            const team2Name = gameData.teams.team2?.name || 'Not registered';
-            
-            document.getElementById('team1-name').textContent = team1Name;
-            document.getElementById('team2-name').textContent = team2Name;
-            
-            if (!gameData.teams.team1) {
-                document.getElementById('team1-name').className = 'team-name empty';
-            } else {
-                document.getElementById('team1-name').className = 'team-name';
-            }
-            
-            if (!gameData.teams.team2) {
-                document.getElementById('team2-name').className = 'team-name empty';
-            } else {
-                document.getElementById('team2-name').className = 'team-name';
-            }
-
-            // Update registration interface
-            const registeredTeams = [gameData.teams.team1, gameData.teams.team2].filter(t => t !== null).length;
-            
-            if (registeredTeams < 2) {
-                // Show create team interface
-                document.getElementById('create-team-section').style.display = 'block';
-                document.getElementById('join-section').style.display = 'none';
-            } else {
-                // Show join team interface
-                document.getElementById('create-team-section').style.display = 'none';
-                document.getElementById('join-section').style.display = 'grid';
-                
-                // Update join button text
-                document.getElementById('join-team1-name').textContent = team1Name;
-                document.getElementById('join-team2-name').textContent = team2Name;
-            }
-
-            // Show/hide switch team button
+            // Simple logic: if user has a team, hide everything except buzzer and show team name
             if (userTeam) {
-                document.getElementById('switch-team-section').style.display = 'block';
+                // User is on a team - show team name and hide all registration UI
+                const teamName = userTeam === 1 ? 
+                    gameData.teams.team1?.name || 'Team 1' : 
+                    gameData.teams.team2?.name || 'Team 2';
+                
+                document.getElementById('user-team-name').textContent = teamName;
+                document.getElementById('team-header').style.display = 'block';
+                document.getElementById('team-registration').style.display = 'none';
+                document.getElementById('create-team-section').style.display = 'none';
             } else {
-                document.getElementById('switch-team-section').style.display = 'none';
+                // User needs to pick a team - hide team header, show appropriate registration
+                document.getElementById('team-header').style.display = 'none';
+                document.getElementById('team-registration').style.display = 'block';
+                
+                const bothTeamsExist = gameData.teams.team1 && gameData.teams.team2;
+                
+                if (bothTeamsExist) {
+                    // Both teams exist - show join buttons
+                    document.getElementById('create-team-section').style.display = 'none';
+                    document.getElementById('join-section').style.display = 'grid';
+                    
+                    // Update join button text
+                    document.getElementById('join-team1-name').textContent = gameData.teams.team1.name;
+                    document.getElementById('join-team2-name').textContent = gameData.teams.team2.name;
+                } else {
+                    // Need to create a team - show create form
+                    document.getElementById('create-team-section').style.display = 'block';
+                    document.getElementById('join-section').style.display = 'none';
+                }
             }
         }
 
@@ -690,12 +634,15 @@
             }
 
             try {
-                // Determine which team slot to use
+                // Use the lowest available team slot
                 let teamSlot = null;
+                let teamNumber = null;
                 if (!gameData.teams.team1) {
                     teamSlot = 'team1';
+                    teamNumber = 1;
                 } else if (!gameData.teams.team2) {
                     teamSlot = 'team2';
+                    teamNumber = 2;
                 } else {
                     alert('Both teams are already registered');
                     return;
@@ -706,14 +653,16 @@
                     name: teamName
                 });
 
-                // Join the team we just created
-                userTeam = teamSlot === 'team1' ? 1 : 2;
+                // Set this user to that team
+                setUserTeam(teamNumber);
                 input.value = '';
                 
                 // Haptic feedback
                 if (navigator.vibrate) {
                     navigator.vibrate(50);
                 }
+
+                updateTeamsDisplay();
 
             } catch (error) {
                 console.error('Error creating team:', error);
@@ -722,7 +671,7 @@
         }
 
         function joinTeam(teamNumber) {
-            userTeam = teamNumber;
+            setUserTeam(teamNumber);
             
             // Haptic feedback
             if (navigator.vibrate) {
@@ -732,17 +681,7 @@
             updateTeamsDisplay();
         }
 
-        function switchTeam() {
-            if (userTeam === 1) {
-                userTeam = 2;
-            } else if (userTeam === 2) {
-                userTeam = 1;
-            } else {
-                userTeam = null;
-            }
-            
-            updateTeamsDisplay();
-        }
+        // Remove the switch team function since we don't need it anymore
 
         async function buzzIn() {
             if (!database || !gameData.buzzer.active || gameData.buzzer.firstBuzz || !userTeam) {
