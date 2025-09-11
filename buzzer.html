@@ -373,17 +373,20 @@
             updateConnectionStatus();
         }
 
-        // Local state
-        let gameData = {
-            teams: { team1: null, team2: null },
-            buzzer: { active: false, firstBuzz: null, controllingTeam: null },
-            gameState: { phase: 'setup' },
-            hasQuestions: false
-        };
-        let userTeam = null; // Which team this user has joined
+        // SIMPLIFIED STATE - Read-only views of Firebase data
+        let hasQuestions = false;
+        let teams = { team1: null, team2: null };
+        let buzzerActive = false;
+        let buzzerFirstBuzz = null;
+        let currentPhase = 'setup';
+        let countdownActive = false;
+        let countdownTime = 0;
+        
+        // User's team assignment (stored locally)
+        let userTeam = null;
         let countdownInterval = null;
 
-        // Device-specific state management
+        // Device-specific state management for user team
         function getUserTeam() {
             return localStorage.getItem('familyFeud_userTeam');
         }
@@ -431,65 +434,56 @@
 
             // Listen for question set (to know if game has started)
             database.ref('questionSet').on('value', (snapshot) => {
-                const hasQuestions = snapshot.exists() && snapshot.val().questions && snapshot.val().questions.length > 0;
-                gameData.hasQuestions = hasQuestions;
-                
-                if (hasQuestions) {
-                    document.getElementById('no-questions-state').style.display = 'none';
-                    document.getElementById('game-content').style.display = 'block';
-                    // Update teams display when game content becomes visible
-                    updateTeamsDisplay();
-                } else {
-                    document.getElementById('no-questions-state').style.display = 'block';
-                    document.getElementById('game-content').style.display = 'none';
-                }
+                hasQuestions = snapshot.exists() && snapshot.val().questions && snapshot.val().questions.length > 0;
+                updateGameVisibility();
             });
 
-            // Listen for teams
+            // Listen for teams - simplified
             database.ref('teams').on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    gameData.teams = snapshot.val();
-                } else {
-                    gameData.teams = { team1: null, team2: null };
-                    // Clear user team data if teams are cleared globally
-                    clearUserTeamData();
+                teams = snapshot.exists() ? snapshot.val() : { team1: null, team2: null };
+                if (!snapshot.exists()) {
+                    clearUserTeamData(); // Clear user team if teams are cleared globally
                 }
                 updateTeamsDisplay();
             });
 
-            // Listen for buzzer state
-            database.ref('buzzer').on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    gameData.buzzer = snapshot.val();
-                } else {
-                    gameData.buzzer = { active: false, firstBuzz: null, controllingTeam: null };
-                }
+            // Listen for buzzer state - simplified to just what we need
+            database.ref('buzzer/active').on('value', (snapshot) => {
+                buzzerActive = snapshot.val() || false;
+                updateBuzzerState();
+            });
+            
+            database.ref('buzzer/firstBuzz').on('value', (snapshot) => {
+                buzzerFirstBuzz = snapshot.val() || null;
                 updateBuzzerState();
             });
 
-            // Listen for game state (including phase and countdown)
-            database.ref('gameState').on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    gameData.gameState = snapshot.val();
-                } else {
-                    gameData.gameState = { phase: 'setup' };
-                }
+            // Listen for game phase - simplified
+            database.ref('gameState/phase').on('value', (snapshot) => {
+                currentPhase = snapshot.val() || 'setup';
                 updatePhaseDisplay();
             });
 
-            // Listen for countdown
+            // Listen for countdown - simplified
             database.ref('countdown').on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    const countdownData = snapshot.val();
-                    if (countdownData.active) {
-                        startCountdownDisplay(countdownData.timeLeft);
-                    } else {
-                        stopCountdownDisplay();
-                    }
+                const countdownData = snapshot.val();
+                if (countdownData && countdownData.active) {
+                    startCountdownDisplay(countdownData.timeLeft);
                 } else {
                     stopCountdownDisplay();
                 }
             });
+        }
+
+        function updateGameVisibility() {
+            if (hasQuestions) {
+                document.getElementById('no-questions-state').style.display = 'none';
+                document.getElementById('game-content').style.display = 'block';
+                updateTeamsDisplay(); // Update teams display when game content becomes visible
+            } else {
+                document.getElementById('no-questions-state').style.display = 'block';
+                document.getElementById('game-content').style.display = 'none';
+            }
         }
 
         function updateTeamsDisplay() {
@@ -497,8 +491,8 @@
             if (userTeam) {
                 // User is on a team - show team name and hide all registration UI
                 const teamName = userTeam === 1 ? 
-                    gameData.teams.team1?.name || 'Team 1' : 
-                    gameData.teams.team2?.name || 'Team 2';
+                    teams.team1?.name || 'Team 1' : 
+                    teams.team2?.name || 'Team 2';
                 
                 document.getElementById('user-team-name').textContent = teamName;
                 document.getElementById('team-header').style.display = 'block';
@@ -509,7 +503,7 @@
                 document.getElementById('team-header').style.display = 'none';
                 document.getElementById('team-registration').style.display = 'block';
                 
-                const bothTeamsExist = gameData.teams.team1 && gameData.teams.team2;
+                const bothTeamsExist = teams.team1 && teams.team2;
                 
                 if (bothTeamsExist) {
                     // Both teams exist - show join buttons
@@ -517,8 +511,8 @@
                     document.getElementById('join-section').style.display = 'grid';
                     
                     // Update join button text
-                    document.getElementById('join-team1-name').textContent = gameData.teams.team1.name;
-                    document.getElementById('join-team2-name').textContent = gameData.teams.team2.name;
+                    document.getElementById('join-team1-name').textContent = teams.team1.name;
+                    document.getElementById('join-team2-name').textContent = teams.team2.name;
                 } else {
                     // Need to create a team - show create form
                     document.getElementById('create-team-section').style.display = 'block';
@@ -528,10 +522,9 @@
         }
 
         function updatePhaseDisplay() {
-            const phase = gameData.gameState.phase || 'setup';
             let phaseText = '';
 
-            switch (phase) {
+            switch (currentPhase) {
                 case 'setup':
                     phaseText = 'Game Setup';
                     break;
@@ -544,17 +537,11 @@
                 case 'buzzer_active':
                     phaseText = 'BUZZER ACTIVE!';
                     break;
-                case 'teamplay':
-                    const controllingTeamName = gameData.buzzer.controllingTeam === 1 ? 
-                        gameData.teams.team1?.name || 'Team 1' : 
-                        gameData.teams.team2?.name || 'Team 2';
-                    phaseText = `${controllingTeamName} Playing`;
+                case 'main_game':
+                    phaseText = 'Team Playing';
                     break;
                 case 'steal':
-                    const stealingTeamName = gameData.buzzer.controllingTeam === 1 ? 
-                        gameData.teams.team2?.name || 'Team 2' : 
-                        gameData.teams.team1?.name || 'Team 1';
-                    phaseText = `${stealingTeamName} Steal Opportunity`;
+                    phaseText = 'Steal Opportunity';
                     break;
                 default:
                     phaseText = 'Waiting for admin...';
@@ -567,28 +554,28 @@
             const buzzButton = document.getElementById('buzz-button');
             const buzzStatus = document.getElementById('buzz-status');
 
-            if (gameData.buzzer.active && !gameData.buzzer.firstBuzz) {
-                // Buzzer is active, enable button
+            if (buzzerActive && !buzzerFirstBuzz && userTeam) {
+                // Buzzer is active, user has team, enable button
                 buzzButton.disabled = false;
                 buzzButton.className = 'buzz-button';
                 buzzStatus.textContent = '';
-            } else if (gameData.buzzer.firstBuzz) {
+            } else if (buzzerFirstBuzz) {
                 // Someone has buzzed
                 buzzButton.disabled = true;
                 buzzButton.className = 'buzz-button buzzed';
                 
-                const winnerTeam = gameData.buzzer.firstBuzz.team;
+                const winnerTeam = buzzerFirstBuzz.team;
                 const winnerName = winnerTeam === 1 ? 
-                    gameData.teams.team1?.name || 'Team 1' : 
-                    gameData.teams.team2?.name || 'Team 2';
+                    teams.team1?.name || 'Team 1' : 
+                    teams.team2?.name || 'Team 2';
                 
-                if (gameData.buzzer.firstBuzz.team === userTeam) {
+                if (buzzerFirstBuzz.team === userTeam) {
                     buzzStatus.innerHTML = `<span class="buzz-winner">You buzzed first!</span>`;
                 } else {
                     buzzStatus.innerHTML = `<span class="buzz-locked">${winnerName} buzzed first</span>`;
                 }
             } else {
-                // Buzzer not active
+                // Buzzer not active or user has no team
                 buzzButton.disabled = true;
                 buzzButton.className = 'buzz-button';
                 buzzStatus.textContent = '';
@@ -619,6 +606,7 @@
             document.getElementById('countdown-display').style.display = 'none';
         }
 
+        // TEAM REGISTRATION FUNCTIONS (kept safe with transactions)
         async function createTeam() {
             const input = document.getElementById('team-name-input');
             const teamName = input.value.trim();
@@ -634,36 +622,35 @@
             }
 
             try {
-                // Use the lowest available team slot
-                let teamSlot = null;
-                let teamNumber = null;
-                if (!gameData.teams.team1) {
-                    teamSlot = 'team1';
-                    teamNumber = 1;
-                } else if (!gameData.teams.team2) {
-                    teamSlot = 'team2';
-                    teamNumber = 2;
-                } else {
-                    alert('Both teams are already registered');
-                    return;
-                }
-
-                // Create the team
-                await database.ref(`teams/${teamSlot}`).set({
-                    name: teamName
+                // Use transaction for safe team creation
+                const result = await database.ref('teams').transaction((currentTeams) => {
+                    const teams = currentTeams || {};
+                    
+                    // Find first available slot
+                    if (!teams.team1) {
+                        return { ...teams, team1: { name: teamName } };
+                    } else if (!teams.team2) {
+                        return { ...teams, team2: { name: teamName } };
+                    } else {
+                        return undefined; // Both slots taken, abort
+                    }
                 });
 
-                // Set this user to that team
-                setUserTeam(teamNumber);
-                input.value = '';
-                
-                // Haptic feedback
-                if (navigator.vibrate) {
-                    navigator.vibrate(50);
+                if (result.committed) {
+                    // Success - determine which team we got
+                    const teams = result.snapshot.val();
+                    const teamNumber = teams.team1?.name === teamName ? 1 : 2;
+                    setUserTeam(teamNumber);
+                    input.value = '';
+                    
+                    // Haptic feedback
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
+                } else {
+                    alert('Both teams are already registered');
                 }
-
                 updateTeamsDisplay();
-
             } catch (error) {
                 console.error('Error creating team:', error);
                 alert('Error creating team. Please try again.');
@@ -681,10 +668,9 @@
             updateTeamsDisplay();
         }
 
-        // Remove the switch team function since we don't need it anymore
-
+        // BUZZER FUNCTION (kept safe with transaction)
         async function buzzIn() {
-            if (!database || !gameData.buzzer.active || gameData.buzzer.firstBuzz || !userTeam) {
+            if (!database || !buzzerActive || buzzerFirstBuzz || !userTeam) {
                 return;
             }
 

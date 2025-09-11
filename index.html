@@ -177,7 +177,7 @@
             .no-questions { font-size: 1.5em; padding: 50px 20px; }
         }
         
-        /* New styles for enhanced display */
+        /* Enhanced display elements */
         .game-phase-indicator {
             background: rgba(255, 193, 7, 0.2);
             border: 1px solid #FFC107;
@@ -335,21 +335,11 @@
             updateConnectionStatus();
         }
 
-        let loadedQuestions = [];
-        let currentQuestionSetName = '';
-        
-        let gameState = {
-            currentQuestion: 0,
-            team1Score: 0,
-            team2Score: 0,
-            revealedAnswers: {},
-            strikes: 0,
-            phase: 'setup'
-        };
-
-        // New data structures for enhanced gameplay
-        let teams = { team1: null, team2: null };
-        let buzzer = { active: false, firstBuzz: null, controllingTeam: null };
+        // DISPLAY STATE - minimal cached data for building UI
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let revealedAnswers = {};
+        let countdownInterval = null;
 
         function updateConnectionStatus() {
             const statusEl = document.getElementById('connection-status');
@@ -365,164 +355,138 @@
             }
         }
 
-        function showNoQuestions() {
-            document.getElementById('no-questions').style.display = 'block';
-            document.getElementById('game-board').classList.remove('visible');
-        }
-
         function showGameBoard() {
             document.getElementById('no-questions').style.display = 'none';
             document.getElementById('game-board').classList.add('visible');
         }
 
-        function initializeGame() {
-            // Start with no questions state
-            showNoQuestions();
-            
-            // Listen for Firebase updates if available
-            if (database) {
-                // Listen for question set changes
-                database.ref('questionSet').on('value', (snapshot) => {
-                    if (snapshot.exists()) {
-                        const questionSetData = snapshot.val();
-                        loadedQuestions = questionSetData.questions || [];
-                        currentQuestionSetName = questionSetData.name || 'Unknown';
-                        
-                        if (loadedQuestions.length > 0) {
-                            showGameBoard();
-                            updateDisplay();
-                        } else {
-                            showNoQuestions();
-                        }
-                    } else {
-                        // No question set in database
-                        loadedQuestions = [];
-                        showNoQuestions();
-                    }
-                });
-                
-                // Listen for game state changes
-                database.ref('gameState').on('value', (snapshot) => {
-                    if (snapshot.exists()) {
-                        gameState = snapshot.val();
-                        if (loadedQuestions.length > 0) {
-                            updateDisplay();
-                        }
-                    }
-                });
-                
-                // Listen for teams
-                database.ref('teams').on('value', (snapshot) => {
-                    if (snapshot.exists()) {
-                        teams = snapshot.val();
-                    } else {
-                        teams = { team1: null, team2: null };
-                    }
-                    updateTeamDisplay();
-                });
-                
-                // Listen for buzzer state
-                database.ref('buzzer').on('value', (snapshot) => {
-                    if (snapshot.exists()) {
-                        buzzer = snapshot.val();
-                    } else {
-                        buzzer = { active: false, firstBuzz: null, controllingTeam: null };
-                    }
-                    updateBuzzerDisplay();
-                });
-                
-                // Listen for countdown
-                database.ref('countdown').on('value', (snapshot) => {
-                    if (snapshot.exists()) {
-                        const countdownData = snapshot.val();
-                        if (countdownData.active) {
-                            showCountdown(countdownData.timeLeft);
-                        } else {
-                            hideCountdown();
-                        }
-                    } else {
-                        hideCountdown();
-                    }
-                });
-            } else {
-                // No Firebase connection
-                showNoQuestions();
-            }
+        function hideGameBoard() {
+            document.getElementById('no-questions').style.display = 'block';
+            document.getElementById('game-board').classList.remove('visible');
         }
 
-        function updateDisplay() {
-            if (loadedQuestions.length === 0) {
-                showNoQuestions();
-                return;
-            }
-            
-            // Ensure current question is within bounds
-            if (gameState.currentQuestion >= loadedQuestions.length) {
-                gameState.currentQuestion = 0;
-            }
-            
-            const currentQ = loadedQuestions[gameState.currentQuestion];
-            
-            if (!currentQ) {
-                showNoQuestions();
-                return;
-            }
-            
-            // Update question
-            document.getElementById('current-question').textContent = currentQ.question;
-            
-            // Update scores
-            document.getElementById('team1-score').textContent = gameState.team1Score || 0;
-            document.getElementById('team2-score').textContent = gameState.team2Score || 0;
-            
-            // Update all new displays
-            updateTeamDisplay();
-            updatePhaseDisplay();
-            updateBuzzerDisplay();
-            updateStrikesDisplay();
-            
-            // Update answers board
+        function rebuildAnswersBoard() {
             const answersBoard = document.getElementById('answers-board');
             answersBoard.innerHTML = '';
             
-            if (currentQ.answers && currentQ.answers.length > 0) {
-                currentQ.answers.forEach((answer, index) => {
-                    const answerSlot = document.createElement('div');
-                    const key = `q${gameState.currentQuestion}_a${index}`;
-                    const isRevealed = gameState.revealedAnswers && gameState.revealedAnswers[key];
-                    
-                    answerSlot.className = `answer-slot ${isRevealed ? '' : 'hidden'}`;
-                    answerSlot.innerHTML = `
-                        <div class="answer-rank">${answer.rank || (index + 1)}</div>
-                        <div class="answer-text">${answer.text || 'Unknown Answer'}</div>
-                        <div class="answer-points">${answer.points || 0}</div>
-                    `;
-                    
-                    answersBoard.appendChild(answerSlot);
-                });
+            if (!currentQuestions[currentQuestionIndex] || !currentQuestions[currentQuestionIndex].answers) {
+                return;
             }
-        }
-
-        // Initialize the game when page loads
-        document.addEventListener('DOMContentLoaded', initializeGame);
-
-        // New functions for enhanced display
-        function updateTeamDisplay() {
-            const team1Name = teams.team1?.name || 'TEAM 1';
-            const team2Name = teams.team2?.name || 'TEAM 2';
             
-            document.getElementById('team1-display-name').textContent = team1Name;
-            document.getElementById('team2-display-name').textContent = team2Name;
+            const currentQ = currentQuestions[currentQuestionIndex];
+            currentQ.answers.forEach((answer, index) => {
+                const answerSlot = document.createElement('div');
+                const key = `q${currentQuestionIndex}_a${index}`;
+                const isRevealed = revealedAnswers[key] || false;
+                
+                answerSlot.className = `answer-slot ${isRevealed ? '' : 'hidden'}`;
+                answerSlot.innerHTML = `
+                    <div class="answer-rank">${answer.rank || (index + 1)}</div>
+                    <div class="answer-text">${answer.text || 'Unknown Answer'}</div>
+                    <div class="answer-points">${answer.points || 0}</div>
+                `;
+                
+                answersBoard.appendChild(answerSlot);
+            });
         }
 
-        function updatePhaseDisplay() {
-            const phase = gameState.phase || 'setup';
+        function initializeGame() {
+            if (!database) {
+                hideGameBoard();
+                return;
+            }
+
+            // Listen for question set changes - show/hide game board
+            database.ref('questionSet').on('value', (snapshot) => {
+                if (snapshot.exists() && snapshot.val().questions && snapshot.val().questions.length > 0) {
+                    currentQuestions = snapshot.val().questions;
+                    showGameBoard();
+                    rebuildAnswersBoard();
+                } else {
+                    currentQuestions = [];
+                    hideGameBoard();
+                }
+            });
+
+            // DIRECT FIREBASE-TO-DOM UPDATES - no local state management
+
+            // Current question index and text
+            database.ref('gameState/currentQuestion').on('value', (snapshot) => {
+                currentQuestionIndex = snapshot.val() || 0;
+                const questionText = currentQuestions[currentQuestionIndex]?.question || 'Loading...';
+                document.getElementById('current-question').textContent = questionText;
+                rebuildAnswersBoard(); // Rebuild when question changes
+            });
+
+            // Revealed answers
+            database.ref('gameState/revealedAnswers').on('value', (snapshot) => {
+                revealedAnswers = snapshot.val() || {};
+                rebuildAnswersBoard(); // Rebuild when answers change
+            });
+
+            // Team names
+            database.ref('teams/team1/name').on('value', (snapshot) => {
+                document.getElementById('team1-display-name').textContent = snapshot.val() || 'TEAM 1';
+            });
+            
+            database.ref('teams/team2/name').on('value', (snapshot) => {
+                document.getElementById('team2-display-name').textContent = snapshot.val() || 'TEAM 2';
+            });
+
+            // Scores
+            database.ref('gameState/team1Score').on('value', (snapshot) => {
+                document.getElementById('team1-score').textContent = snapshot.val() || 0;
+            });
+            
+            database.ref('gameState/team2Score').on('value', (snapshot) => {
+                document.getElementById('team2-score').textContent = snapshot.val() || 0;
+            });
+
+            // Game phase display
+            database.ref('gameState/phase').on('value', (snapshot) => {
+                const phase = snapshot.val() || 'setup';
+                updatePhaseDisplay(phase);
+            });
+
+            // Buzzer results
+            database.ref('buzzer/firstBuzz').on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    const buzz = snapshot.val();
+                    showBuzzResults(buzz);
+                } else {
+                    hideBuzzResults();
+                }
+            });
+
+            // Strikes display
+            database.ref('gameState/strikes').on('value', (snapshot) => {
+                const strikes = snapshot.val() || 0;
+                updateStrikesDisplay(strikes);
+            });
+
+            // Controlling team (for strikes display)
+            database.ref('buzzer/controllingTeam').on('value', (snapshot) => {
+                const controllingTeam = snapshot.val();
+                updateStrikesDisplay(null, controllingTeam);
+            });
+
+            // Countdown
+            database.ref('countdown').on('value', (snapshot) => {
+                if (snapshot.exists() && snapshot.val().active) {
+                    showCountdown(snapshot.val().timeLeft);
+                } else {
+                    hideCountdown();
+                }
+            });
+        }
+
+        function updatePhaseDisplay(phase) {
             let phaseText = '';
             let showPhase = true;
 
             switch (phase) {
                 case 'setup':
-                    phaseText = 'Game Setup';
+                    showPhase = false;
                     break;
                 case 'faceoff':
                     phaseText = 'Face-off in Progress';
@@ -533,23 +497,17 @@
                 case 'buzzer_active':
                     phaseText = 'BUZZER ACTIVE!';
                     break;
-                case 'teamplay':
-                    const controllingTeamName = buzzer.controllingTeam === 1 ? 
-                        teams.team1?.name || 'Team 1' : 
-                        teams.team2?.name || 'Team 2';
-                    phaseText = `${controllingTeamName} Playing`;
+                case 'main_game':
+                    phaseText = 'Team Playing';
                     break;
                 case 'steal':
-                    const stealingTeamName = buzzer.controllingTeam === 1 ? 
-                        teams.team2?.name || 'Team 2' : 
-                        teams.team1?.name || 'Team 1';
-                    phaseText = `${stealingTeamName} Steal Opportunity`;
+                    phaseText = 'Steal Opportunity';
                     break;
                 default:
                     showPhase = false;
             }
 
-            if (showPhase && phase !== 'setup') {
+            if (showPhase) {
                 document.getElementById('phase-text').textContent = phaseText;
                 document.getElementById('phase-indicator').style.display = 'block';
             } else {
@@ -557,38 +515,43 @@
             }
         }
 
-        function updateBuzzerDisplay() {
-            if (buzzer.firstBuzz) {
-                const winnerTeam = buzzer.firstBuzz.team;
-                const winnerName = winnerTeam === 1 ? 
-                    teams.team1?.name || 'Team 1' : 
-                    teams.team2?.name || 'Team 2';
-                
-                document.getElementById('buzz-winner').textContent = `${winnerName} buzzed first!`;
-                document.getElementById('buzz-results').style.display = 'block';
-            } else {
-                document.getElementById('buzz-results').style.display = 'none';
-            }
+        function showBuzzResults(buzz) {
+            // Get team names directly from DOM (already updated by Firebase listeners)
+            const team1Name = document.getElementById('team1-display-name').textContent;
+            const team2Name = document.getElementById('team2-display-name').textContent;
+            
+            const winnerName = buzz.team === 1 ? team1Name : team2Name;
+            document.getElementById('buzz-winner').textContent = `${winnerName} buzzed first!`;
+            document.getElementById('buzz-results').style.display = 'block';
         }
 
-        function updateStrikesDisplay() {
-            const strikes = gameState.strikes || 0;
-            const controllingTeam = buzzer.controllingTeam;
-            
-            if (strikes > 0 && controllingTeam) {
-                const teamName = controllingTeam === 1 ? 
-                    teams.team1?.name || 'Team 1' : 
-                    teams.team2?.name || 'Team 2';
+        function hideBuzzResults() {
+            document.getElementById('buzz-results').style.display = 'none';
+        }
+
+        // Keep track of strikes and controlling team for display
+        let currentStrikes = 0;
+        let currentControllingTeam = null;
+
+        function updateStrikesDisplay(strikes, controllingTeam) {
+            // Update stored values if provided
+            if (strikes !== null && strikes !== undefined) currentStrikes = strikes;
+            if (controllingTeam !== null && controllingTeam !== undefined) currentControllingTeam = controllingTeam;
+
+            if (currentStrikes > 0 && currentControllingTeam) {
+                // Get team name directly from DOM
+                const team1Name = document.getElementById('team1-display-name').textContent;
+                const team2Name = document.getElementById('team2-display-name').textContent;
+                const teamName = currentControllingTeam === 1 ? team1Name : team2Name;
                 
-                const strikeSymbols = '⚡'.repeat(strikes);
-                document.getElementById('strikes-text').textContent = `${teamName}: ${strikeSymbols} (${strikes} strike${strikes > 1 ? 's' : ''})`;
+                const strikeSymbols = '⚡'.repeat(currentStrikes);
+                document.getElementById('strikes-text').textContent = 
+                    `${teamName}: ${strikeSymbols} (${currentStrikes} strike${currentStrikes > 1 ? 's' : ''})`;
                 document.getElementById('strikes-display').style.display = 'block';
             } else {
                 document.getElementById('strikes-display').style.display = 'none';
             }
         }
-
-        let countdownInterval = null;
 
         function showCountdown(timeLeft) {
             hideCountdown(); // Clear any existing countdown
@@ -613,6 +576,9 @@
             }
             document.getElementById('countdown-display').style.display = 'none';
         }
+
+        // Initialize the game when page loads
+        document.addEventListener('DOMContentLoaded', initializeGame);
     </script>
 </body>
 </html>
