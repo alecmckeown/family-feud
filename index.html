@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resident Family Feud - SAGES Edition</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial Black', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .game-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .title {
+            font-size: 3em;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            margin-bottom: 10px;
+        }
+        
+        .question {
+            font-size: 1.8em;
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .answers-board {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .answer-slot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #FFD700;
+            color: #000;
+            margin: 10px 0;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 1.5em;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            min-height: 60px;
+        }
+        
+        .answer-slot.hidden {
+            background: #333;
+            color: #666;
+        }
+        
+        .answer-slot.hidden .answer-text {
+            visibility: hidden;
+        }
+        
+        .answer-slot.hidden .answer-points {
+            visibility: hidden;
+        }
+        
+        .answer-rank {
+            font-size: 2em;
+            margin-right: 15px;
+            min-width: 40px;
+        }
+        
+        .answer-text {
+            flex-grow: 1;
+            text-align: left;
+        }
+        
+        .answer-points {
+            font-size: 1.2em;
+            min-width: 50px;
+            text-align: right;
+        }
+        
+        .scores {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        
+        .team-score {
+            background: rgba(255,255,255,0.2);
+            padding: 20px 40px;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 1.5em;
+        }
+        
+        .team-name {
+            font-size: 0.8em;
+            margin-bottom: 10px;
+        }
+        
+        .score-value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        
+        .no-questions {
+            text-align: center;
+            padding: 100px 20px;
+            font-size: 2em;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .no-questions-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .connected {
+            background: rgba(76, 175, 80, 0.8);
+        }
+        
+        .disconnected {
+            background: rgba(244, 67, 54, 0.8);
+        }
+        
+        .loading {
+            background: rgba(255, 193, 7, 0.8);
+        }
+        
+        .game-board {
+            display: none;
+        }
+        
+        .game-board.visible {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .title { font-size: 2em; }
+            .question { font-size: 1.4em; }
+            .answer-slot { font-size: 1.2em; }
+            .answer-rank { font-size: 1.5em; }
+            .no-questions { font-size: 1.5em; padding: 50px 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connection-status">Connecting...</div>
+    
+    <div class="game-container">
+        <div class="header">
+            <h1 class="title">RESIDENT FAMILY FEUD</h1>
+        </div>
+        
+        <!-- No Questions State -->
+        <div class="no-questions" id="no-questions">
+            <div class="no-questions-icon">🎯</div>
+            <div>Waiting for questions...</div>
+        </div>
+        
+        <!-- Game Board (hidden until questions loaded) -->
+        <div class="game-board" id="game-board">
+            <div class="question" id="current-question">Loading...</div>
+            
+            <div class="scores">
+                <div class="team-score">
+                    <div class="team-name">TEAM 1</div>
+                    <div class="score-value" id="team1-score">0</div>
+                </div>
+                <div class="team-score">
+                    <div class="team-name">TEAM 2</div>
+                    <div class="score-value" id="team2-score">0</div>
+                </div>
+            </div>
+            
+            <div class="answers-board" id="answers-board">
+                <!-- Answers will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBI0FZRNrYyCjVWic6YEMmZ_bbHE4IAhcY",
+            authDomain: "resident-family-feud.firebaseapp.com",
+            databaseURL: "https://resident-family-feud-default-rtdb.firebaseio.com",
+            projectId: "resident-family-feud",
+            storageBucket: "resident-family-feud.firebasestorage.app",
+            messagingSenderId: "895685579158",
+            appId: "1:895685579158:web:1267859ee412bfe453cdb7"
+        };
+
+        // Initialize Firebase
+        let database;
+        let isConnected = false;
+        
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            
+            // Monitor connection status
+            const connectedRef = database.ref(".info/connected");
+            connectedRef.on("value", (snap) => {
+                isConnected = snap.val();
+                updateConnectionStatus();
+            });
+            
+            console.log("Firebase initialized");
+        } catch (error) {
+            console.log("Firebase not configured, using local mode");
+            updateConnectionStatus();
+        }
+
+        let loadedQuestions = [];
+        let currentQuestionSetName = '';
+        
+        let gameState = {
+            currentQuestion: 0,
+            team1Score: 0,
+            team2Score: 0,
+            revealedAnswers: {}
+        };
+
+        function updateConnectionStatus() {
+            const statusEl = document.getElementById('connection-status');
+            if (database && isConnected) {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'connection-status connected';
+            } else if (database && !isConnected) {
+                statusEl.textContent = 'Connecting...';
+                statusEl.className = 'connection-status loading';
+            } else {
+                statusEl.textContent = 'Offline';
+                statusEl.className = 'connection-status disconnected';
+            }
+        }
+
+        function showNoQuestions() {
+            document.getElementById('no-questions').style.display = 'block';
+            document.getElementById('game-board').classList.remove('visible');
+        }
+
+        function showGameBoard() {
+            document.getElementById('no-questions').style.display = 'none';
+            document.getElementById('game-board').classList.add('visible');
+        }
+
+        function initializeGame() {
+            // Start with no questions state
+            showNoQuestions();
+            
+            // Listen for Firebase updates if available
+            if (database) {
+                // Listen for question set changes
+                database.ref('questionSet').on('value', (snapshot) => {
+                    if (snapshot.exists()) {
+                        const questionSetData = snapshot.val();
+                        loadedQuestions = questionSetData.questions || [];
+                        currentQuestionSetName = questionSetData.name || 'Unknown';
+                        
+                        if (loadedQuestions.length > 0) {
+                            showGameBoard();
+                            updateDisplay();
+                        } else {
+                            showNoQuestions();
+                        }
+                    } else {
+                        // No question set in database
+                        loadedQuestions = [];
+                        showNoQuestions();
+                    }
+                });
+                
+                // Listen for game state changes
+                database.ref('gameState').on('value', (snapshot) => {
+                    if (snapshot.exists()) {
+                        gameState = snapshot.val();
+                        if (loadedQuestions.length > 0) {
+                            updateDisplay();
+                        }
+                    }
+                });
+            } else {
+                // No Firebase connection
+                showNoQuestions();
+            }
+        }
+
+        function updateDisplay() {
+            if (loadedQuestions.length === 0) {
+                showNoQuestions();
+                return;
+            }
+            
+            // Ensure current question is within bounds
+            if (gameState.currentQuestion >= loadedQuestions.length) {
+                gameState.currentQuestion = 0;
+            }
+            
+            const currentQ = loadedQuestions[gameState.currentQuestion];
+            
+            if (!currentQ) {
+                showNoQuestions();
+                return;
+            }
+            
+            // Update question
+            document.getElementById('current-question').textContent = currentQ.question;
+            
+            // Update scores
+            document.getElementById('team1-score').textContent = gameState.team1Score || 0;
+            document.getElementById('team2-score').textContent = gameState.team2Score || 0;
+            
+            // Update answers board
+            const answersBoard = document.getElementById('answers-board');
+            answersBoard.innerHTML = '';
+            
+            if (currentQ.answers && currentQ.answers.length > 0) {
+                currentQ.answers.forEach((answer, index) => {
+                    const answerSlot = document.createElement('div');
+                    const key = `q${gameState.currentQuestion}_a${index}`;
+                    const isRevealed = gameState.revealedAnswers && gameState.revealedAnswers[key];
+                    
+                    answerSlot.className = `answer-slot ${isRevealed ? '' : 'hidden'}`;
+                    answerSlot.innerHTML = `
+                        <div class="answer-rank">${answer.rank || (index + 1)}</div>
+                        <div class="answer-text">${answer.text || 'Unknown Answer'}</div>
+                        <div class="answer-points">${answer.points || 0}</div>
+                    `;
+                    
+                    answersBoard.appendChild(answerSlot);
+                });
+            }
+        }
+
+        // Initialize the game when page loads
+        document.addEventListener('DOMContentLoaded', initializeGame);
+    </script>
+</body>
+</html>

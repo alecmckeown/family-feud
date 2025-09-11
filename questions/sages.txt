@@ -1,0 +1,36 @@
+QUESTION: We surveyed 100 surgeons: Name the most common indications for diagnostic EGD
+1. Upper GI bleeding (30)
+2. Dysphagia (25)
+3. GERD/reflux symptoms (20)
+4. Abdominal pain/dyspepsia (15)
+5. Suspected malignancy (10)
+
+QUESTION: We surveyed 100 surgeons: Name the most important steps in safe laparoscopic entry
+1. Verify insufflation pressure (25)
+2. Insert trocar at 90-degree angle (20)
+3. Confirm intraperitoneal placement (20)
+4. Check for injury before proceeding (15)
+5. Ensure adequate pneumoperitoneum (10)
+6. Use appropriate trocar size (10)
+
+QUESTION: We surveyed 100 surgeons: What are the most common complications of colonoscopy?
+1. Perforation (40)
+2. Bleeding (30)
+3. Cardiopulmonary events (15)
+4. Infection (10)
+5. Missed lesions (5)
+
+QUESTION: We surveyed 100 surgeons: Name the essential elements of the laparoscopic timeout
+1. Patient identity/procedure (25)
+2. Trocar placement plan (20)
+3. Equipment check (20)
+4. Patient positioning (15)
+5. Anticipated complications (12)
+6. Conversion threshold (8)
+
+QUESTION: We surveyed 100 surgeons: What are the contraindications to EGD?
+1. Suspected perforation (30)
+2. Severe cardiopulmonary instability (25)
+3. Recent MI/unstable angina (20)
+4. Uncooperative patient (15)
+5. Severe coagulopathy (10)

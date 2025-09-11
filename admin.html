@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Feud Admin - Mobile</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .admin-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .title {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.8;
+        }
+        
+        .question-loader {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .loader-title {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            text-align: center;
+            color: #FFD700;
+        }
+        
+        .current-set {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .set-name {
+            color: #FFD700;
+            font-weight: bold;
+        }
+        
+        .question-picker {
+            margin-bottom: 20px;
+        }
+        
+        .picker-label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .picker-select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background: white;
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        .load-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+        }
+        
+        .load-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .load-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .change-btn {
+            background: #FF9800;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .change-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .status-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .current-question {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: #FFD700;
+        }
+        
+        .question-text {
+            font-size: 1em;
+            line-height: 1.4;
+            margin-bottom: 15px;
+        }
+        
+        .question-nav {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .nav-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+            max-width: 120px;
+        }
+        
+        .nav-btn:disabled {
+            background: #666;
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .nav-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .answers-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            text-align: center;
+            color: #FFD700;
+        }
+        
+        .answer-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+            text-align: left;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+        }
+        
+        .answer-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .answer-btn.revealed {
+            background: #666;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .answer-btn.revealed::after {
+            content: " ✓";
+            float: right;
+        }
+        
+        .scores-section {
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .scores-display {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        
+        .team-score {
+            text-align: center;
+        }
+        
+        .team-name {
+            font-size: 1em;
+            margin-bottom: 5px;
+            color: #FFD700;
+        }
+        
+        .score-value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        
+        .score-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .score-btn {
+            background: #FF9800;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .score-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .score-btn.negative {
+            background: #f44336;
+        }
+        
+        .reset-section {
+            text-align: center;
+        }
+        
+        .reset-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+        }
+        
+        .reset-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .reset-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .connected {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .disconnected {
+            background: #f44336;
+            color: white;
+        }
+        
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .quick-btn {
+            background: #9C27B0;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .quick-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .game-controls {
+            display: none;
+        }
+        
+        .game-controls.visible {
+            display: block;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            opacity: 0.8;
+        }
+        
+        .error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid #f44336;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #ffcdd2;
+        }
+        
+        /* Haptic feedback simulation */
+        @keyframes tap {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.95); }
+            100% { transform: scale(1); }
+        }
+        
+        .tap-feedback {
+            animation: tap 0.1s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connection-status">Connecting...</div>
+    
+    <div class="admin-container">
+        <div class="header">
+            <h1 class="title">ADMIN CONTROL</h1>
+            <div class="subtitle">Family Feud</div>
+        </div>
+        
+        <!-- Question Set Loader -->
+        <div class="question-loader">
+            <div class="loader-title">Question Set</div>
+            
+            <div id="current-set-display" style="display: none;">
+                <div class="current-set">
+                    Current: <span class="set-name" id="current-set-name">None</span>
+                </div>
+                <button class="change-btn" onclick="showQuestionPicker()">Change Questions</button>
+            </div>
+            
+            <div id="question-picker-ui" style="display: none;">
+                <div class="question-picker">
+                    <label class="picker-label">Select Question Set:</label>
+                    <select class="picker-select" id="question-set-select">
+                        <option value="">Loading question sets...</option>
+                    </select>
+                    <button class="load-btn" id="load-questions-btn" onclick="loadQuestionSet()" disabled>
+                        Load Questions
+                    </button>
+                </div>
+                <div id="loading-status" class="loading" style="display: none;">
+                    Loading questions...
+                </div>
+                <div id="error-status" class="error" style="display: none;"></div>
+            </div>
+        </div>
+        
+        <!-- Game Controls (hidden until questions loaded) -->
+        <div class="game-controls" id="game-controls">
+            <div class="status-card">
+                <div class="current-question">Question <span id="question-number">1</span> of <span id="total-questions">5</span></div>
+                <div class="question-text" id="question-text">Loading...</div>
+            </div>
+            
+            <div class="question-nav">
+                <button class="nav-btn" id="prev-btn" onclick="previousQuestion()">← Previous</button>
+                <button class="nav-btn" id="next-btn" onclick="nextQuestion()">Next →</button>
+            </div>
+            
+            <div class="answers-section">
+                <div class="section-title">Reveal Answers</div>
+                <div id="answer-buttons">
+                    <!-- Answer buttons will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="scores-section">
+                <div class="section-title">Scores</div>
+                <div class="scores-display">
+                    <div class="team-score">
+                        <div class="team-name">TEAM 1</div>
+                        <div class="score-value" id="team1-score">0</div>
+                    </div>
+                    <div class="team-score">
+                        <div class="team-name">TEAM 2</div>
+                        <div class="score-value" id="team2-score">0</div>
+                    </div>
+                </div>
+                
+                <div class="score-controls">
+                    <button class="score-btn" onclick="addScore(1, 10)">Team 1 +10</button>
+                    <button class="score-btn" onclick="addScore(2, 10)">Team 2 +10</button>
+                    <button class="score-btn negative" onclick="addScore(1, -10)">Team 1 -10</button>
+                    <button class="score-btn negative" onclick="addScore(2, -10)">Team 2 -10</button>
+                </div>
+                
+                <div class="quick-actions">
+                    <button class="quick-btn" onclick="addScore(1, 25)">Team 1 +25</button>
+                    <button class="quick-btn" onclick="addScore(2, 25)">Team 2 +25</button>
+                </div>
+            </div>
+            
+            <div class="reset-section">
+                <button class="reset-btn" id="reset-btn" onclick="resetGame()">Reset Game</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBI0FZRNrYyCjVWic6YEMmZ_bbHE4IAhcY",
+            authDomain: "resident-family-feud.firebaseapp.com",
+            databaseURL: "https://resident-family-feud-default-rtdb.firebaseio.com",
+            projectId: "resident-family-feud",
+            storageBucket: "resident-family-feud.firebasestorage.app",
+            messagingSenderId: "895685579158",
+            appId: "1:895685579158:web:1267859ee412bfe453cdb7"
+        };
+
+        // Initialize Firebase
+        let database;
+        let isConnected = false;
+        
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            
+            // Monitor connection status
+            const connectedRef = database.ref(".info/connected");
+            connectedRef.on("value", (snap) => {
+                isConnected = snap.val();
+                updateConnectionStatus();
+            });
+            
+            console.log("Firebase initialized");
+        } catch (error) {
+            console.log("Firebase not configured, using local mode");
+            updateConnectionStatus();
+        }
+
+        // Available question sets (loaded dynamically from index.json)
+        let availableQuestionSets = [];
+
+        let loadedQuestions = [];
+        let currentQuestionSetName = '';
+        
+        let gameState = {
+            currentQuestion: 0,
+            team1Score: 0,
+            team2Score: 0,
+            revealedAnswers: {}
+        };
+
+        function updateConnectionStatus() {
+            const statusEl = document.getElementById('connection-status');
+            if (database && isConnected) {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'connection-status connected';
+            } else {
+                statusEl.textContent = 'Offline';
+                statusEl.className = 'connection-status disconnected';
+            }
+        }
+
+        async function populateQuestionSetPicker() {
+            const select = document.getElementById('question-set-select');
+            select.innerHTML = '<option value="">Loading question sets...</option>';
+            
+            try {
+                // Fetch the index of available question sets
+                const response = await fetch('questions/index.json');
+                if (!response.ok) {
+                    throw new Error(`Could not load question index: ${response.status}`);
+                }
+                
+                availableQuestionSets = await response.json();
+                
+                // Clear loading message and populate options
+                select.innerHTML = '<option value="">Select a question set...</option>';
+                
+                availableQuestionSets.forEach(set => {
+                    const option = document.createElement('option');
+                    option.value = set.file;
+                    option.textContent = set.name;
+                    select.appendChild(option);
+                });
+                
+                // Enable load button when selection changes
+                select.addEventListener('change', () => {
+                    const loadBtn = document.getElementById('load-questions-btn');
+                    loadBtn.disabled = !select.value;
+                });
+                
+            } catch (error) {
+                console.error('Error loading question sets index:', error);
+                select.innerHTML = '<option value="">Error loading question sets</option>';
+                
+                // Show error in UI
+                document.getElementById('error-status').textContent = `Could not load question sets: ${error.message}`;
+                document.getElementById('error-status').style.display = 'block';
+            }
+        }
+
+        function showQuestionPicker() {
+            document.getElementById('current-set-display').style.display = 'none';
+            document.getElementById('question-picker-ui').style.display = 'block';
+            document.getElementById('game-controls').classList.remove('visible');
+        }
+
+        function hideQuestionPicker() {
+            document.getElementById('current-set-display').style.display = 'block';
+            document.getElementById('question-picker-ui').style.display = 'none';
+            document.getElementById('game-controls').classList.add('visible');
+        }
+
+        async function loadQuestionSet() {
+            const select = document.getElementById('question-set-select');
+            const selectedFile = select.value;
+            const selectedName = select.options[select.selectedIndex].text;
+            
+            if (!selectedFile) return;
+            
+            // Show loading state
+            document.getElementById('loading-status').style.display = 'block';
+            document.getElementById('error-status').style.display = 'none';
+            document.getElementById('load-questions-btn').disabled = true;
+            
+            try {
+                // Fetch the question file
+                const response = await fetch(`questions/${selectedFile}`);
+                if (!response.ok) {
+                    throw new Error(`Could not load ${selectedFile}: ${response.status}`);
+                }
+                
+                const textContent = await response.text();
+                
+                // Parse the questions
+                const parsedQuestions = parseQuestionText(textContent);
+                
+                if (parsedQuestions.length === 0) {
+                    throw new Error('No valid questions found in file');
+                }
+                
+                // Clear everything in Firebase and load new questions
+                await clearGameData();
+                
+                // Store question set in Firebase
+                const questionSetData = {
+                    name: selectedName,
+                    questions: parsedQuestions
+                };
+                
+                if (database) {
+                    await database.ref('questionSet').set(questionSetData);
+                }
+                
+                // Update local state
+                loadedQuestions = parsedQuestions;
+                currentQuestionSetName = selectedName;
+                
+                // Initialize new game state
+                initializeNewGame();
+                
+                // Hide picker and show game controls
+                hideQuestionPicker();
+                updateCurrentSetDisplay();
+                
+                // Vibrate for success
+                if (navigator.vibrate) {
+                    navigator.vibrate([100, 50, 100]);
+                }
+                
+            } catch (error) {
+                console.error('Error loading questions:', error);
+                document.getElementById('error-status').textContent = `Error: ${error.message}`;
+                document.getElementById('error-status').style.display = 'block';
+            } finally {
+                document.getElementById('loading-status').style.display = 'none';
+                document.getElementById('load-questions-btn').disabled = false;
+            }
+        }
+
+        function parseQuestionText(text) {
+            const questions = [];
+            const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+            
+            let currentQuestion = null;
+            
+            for (const line of lines) {
+                if (line.startsWith('QUESTION:')) {
+                    // Save previous question if exists
+                    if (currentQuestion && currentQuestion.answers.length > 0) {
+                        questions.push(currentQuestion);
+                    }
+                    
+                    // Start new question
+                    currentQuestion = {
+                        question: line.substring(9).trim(),
+                        answers: []
+                    };
+                } else if (line.match(/^\d+\./)) {
+                    // Answer line: "1. Answer text (points)"
+                    if (currentQuestion) {
+                        const match = line.match(/^(\d+)\.\s*(.+?)\s*\((\d+)\)$/);
+                        if (match) {
+                            currentQuestion.answers.push({
+                                rank: parseInt(match[1]),
+                                text: match[2].trim(),
+                                points: parseInt(match[3])
+                            });
+                        }
+                    }
+                }
+            }
+            
+            // Don't forget the last question
+            if (currentQuestion && currentQuestion.answers.length > 0) {
+                questions.push(currentQuestion);
+            }
+            
+            return questions;
+        }
+
+        async function clearGameData() {
+            if (database) {
+                // Clear both question set and game state
+                await database.ref('questionSet').remove();
+                await database.ref('gameState').remove();
+            }
+        }
+
+        function initializeNewGame() {
+            // Initialize revealed answers for all questions
+            const newRevealedAnswers = {};
+            loadedQuestions.forEach((q, qIndex) => {
+                q.answers.forEach((a, aIndex) => {
+                    const key = `q${qIndex}_a${aIndex}`;
+                    newRevealedAnswers[key] = false;
+                });
+            });
+            
+            gameState = {
+                currentQuestion: 0,
+                team1Score: 0,
+                team2Score: 0,
+                revealedAnswers: newRevealedAnswers
+            };
+            
+            updateGameState();
+        }
+
+        function updateCurrentSetDisplay() {
+            document.getElementById('current-set-name').textContent = currentQuestionSetName;
+        }
+
+        async function checkExistingQuestions() {
+            if (!database) return false;
+            
+            try {
+                const snapshot = await database.ref('questionSet').once('value');
+                if (snapshot.exists()) {
+                    const questionSetData = snapshot.val();
+                    loadedQuestions = questionSetData.questions || [];
+                    currentQuestionSetName = questionSetData.name || 'Unknown';
+                    
+                    if (loadedQuestions.length > 0) {
+                        updateCurrentSetDisplay();
+                        hideQuestionPicker();
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking existing questions:', error);
+            }
+            
+            return false;
+        }
+
+        function initializeGame() {
+            // Populate question picker dynamically
+            populateQuestionSetPicker();
+            
+            // Check if questions already loaded
+            checkExistingQuestions().then(hasQuestions => {
+                if (!hasQuestions) {
+                    // No questions loaded, show picker
+                    showQuestionPicker();
+                } else {
+                    // Questions exist, proceed with game
+                    updateDisplay();
+                }
+            });
+            
+            // Listen for Firebase updates if available
+            if (database) {
+                database.ref('gameState').on('value', (snapshot) => {
+                    if (snapshot.exists()) {
+                        gameState = snapshot.val();
+                        updateDisplay();
+                    }
+                });
+                
+                database.ref('questionSet').on('value', (snapshot) => {
+                    if (snapshot.exists()) {
+                        const questionSetData = snapshot.val();
+                        loadedQuestions = questionSetData.questions || [];
+                        currentQuestionSetName = questionSetData.name || 'Unknown';
+                        updateCurrentSetDisplay();
+                        updateDisplay();
+                    }
+                });
+            }
+        }
+
+        function updateGameState() {
+            if (database) {
+                database.ref('gameState').set(gameState);
+            }
+        }
+
+        function updateDisplay() {
+            if (loadedQuestions.length === 0) return;
+            
+            const currentQ = loadedQuestions[gameState.currentQuestion];
+            
+            // Update question info
+            document.getElementById('question-number').textContent = gameState.currentQuestion + 1;
+            document.getElementById('total-questions').textContent = loadedQuestions.length;
+            document.getElementById('question-text').textContent = currentQ.question;
+            
+            // Update navigation buttons
+            document.getElementById('prev-btn').disabled = gameState.currentQuestion === 0;
+            document.getElementById('next-btn').disabled = gameState.currentQuestion === loadedQuestions.length - 1;
+            
+            // Update scores
+            document.getElementById('team1-score').textContent = gameState.team1Score;
+            document.getElementById('team2-score').textContent = gameState.team2Score;
+            
+            // Update answer buttons
+            const answerButtons = document.getElementById('answer-buttons');
+            answerButtons.innerHTML = '';
+            
+            currentQ.answers.forEach((answer, index) => {
+                const key = `q${gameState.currentQuestion}_a${index}`;
+                const isRevealed = gameState.revealedAnswers[key];
+                
+                const button = document.createElement('button');
+                button.className = `answer-btn ${isRevealed ? 'revealed' : ''}`;
+                button.textContent = `${answer.rank}. ${answer.text} (${answer.points} pts)`;
+                button.disabled = isRevealed;
+                button.onclick = () => revealAnswer(index);
+                
+                answerButtons.appendChild(button);
+            });
+        }
+
+        function revealAnswer(answerIndex) {
+            const key = `q${gameState.currentQuestion}_a${answerIndex}`;
+            gameState.revealedAnswers[key] = true;
+            updateGameState();
+            
+            // Add haptic feedback simulation
+            const button = event.target;
+            button.classList.add('tap-feedback');
+            setTimeout(() => button.classList.remove('tap-feedback'), 100);
+            
+            // Vibrate if supported
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+        }
+
+        function nextQuestion() {
+            if (gameState.currentQuestion < loadedQuestions.length - 1) {
+                gameState.currentQuestion++;
+                updateGameState();
+            }
+        }
+
+        function previousQuestion() {
+            if (gameState.currentQuestion > 0) {
+                gameState.currentQuestion--;
+                updateGameState();
+            }
+        }
+
+        function addScore(team, points) {
+            if (team === 1) {
+                gameState.team1Score = Math.max(0, gameState.team1Score + points);
+            } else {
+                gameState.team2Score = Math.max(0, gameState.team2Score + points);
+            }
+            updateGameState();
+            
+            // Vibrate for feedback
+            if (navigator.vibrate) {
+                navigator.vibrate(30);
+            }
+        }
+
+        function resetGame() {
+            if (loadedQuestions.length === 0) {
+                alert('No questions loaded. Please load a question set first.');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to reset the game? This will clear scores and revealed answers but keep the current question set.')) {
+                // Rebuild revealedAnswers for current question set
+                const newRevealedAnswers = {};
+                loadedQuestions.forEach((q, qIndex) => {
+                    q.answers.forEach((a, aIndex) => {
+                        const key = `q${qIndex}_a${aIndex}`;
+                        newRevealedAnswers[key] = false;
+                    });
+                });
+                
+                gameState = {
+                    currentQuestion: 0,
+                    team1Score: 0,
+                    team2Score: 0,
+                    revealedAnswers: newRevealedAnswers
+                };
+                updateGameState();
+                
+                // Vibrate for confirmation
+                if (navigator.vibrate) {
+                    navigator.vibrate([100, 50, 100]);
+                }
+            }
+        }
+
+        // Add touch feedback to all buttons
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeGame();
+            
+            // Add visual feedback to all buttons
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.addEventListener('touchstart', (e) => {
+                    e.target.style.opacity = '0.7';
+                });
+                button.addEventListener('touchend', (e) => {
+                    setTimeout(() => {
+                        e.target.style.opacity = '1';
+                    }, 100);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
