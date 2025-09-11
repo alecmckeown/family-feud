@@ -159,13 +159,13 @@
             background: #2196F3;
             color: white;
             border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-size: 16px;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-size: 14px;
             font-weight: bold;
             cursor: pointer;
             flex: 1;
-            max-width: 120px;
+            max-width: 100px;
         }
         
         .nav-btn:disabled {
@@ -274,12 +274,12 @@
             background: #f44336;
         }
         
-        .reset-section {
+        .control-section {
             text-align: center;
         }
         
-        .reset-btn {
-            background: #f44336;
+        .control-btn {
+            background: #ff5722;
             color: white;
             border: none;
             padding: 15px 30px;
@@ -288,16 +288,146 @@
             font-weight: bold;
             cursor: pointer;
             box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+            margin-top: 20px;
         }
         
-        .reset-btn:active {
+        .control-btn:active {
             transform: scale(0.95);
         }
         
-        .reset-btn:disabled {
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .modal-overlay.visible {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .modal-content h3 {
+            color: #FFD700;
+            margin-bottom: 25px;
+            font-size: 1.5em;
+        }
+        
+        .modal-content .picker-label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #FFD700;
+            text-align: left;
+        }
+        
+        .modal-content .picker-select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background: white;
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        .modal-content .load-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+            margin-bottom: 10px;
+        }
+        
+        .modal-content .load-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .modal-content .load-btn:disabled {
             background: #666;
             cursor: not-allowed;
-            opacity: 0.6;
+        }
+        
+        .danger-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hold-btn {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hold-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: rgba(255, 255, 255, 0.3);
+            transition: none;
+            z-index: 1;
+        }
+        
+        .hold-btn.holding::before {
+            transition: width 700ms linear;
+            width: 100%;
+        }
+        
+        .hold-btn .btn-text {
+            position: relative;
+            z-index: 2;
+        }
+        
+        .cancel-btn {
+            background: #666;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .cancel-btn:active {
+            transform: scale(0.95);
         }
         
         .connection-status {
@@ -343,10 +473,6 @@
         }
         
         .game-controls {
-            display: none;
-        }
-        
-        .game-controls.visible {
             display: block;
         }
         
@@ -387,44 +513,47 @@
             <div class="subtitle">Family Feud</div>
         </div>
         
-        <!-- Question Set Loader -->
-        <div class="question-loader">
-            <div class="loader-title">Question Set</div>
-            
-            <div id="current-set-display" style="display: none;">
-                <div class="current-set">
-                    Current: <span class="set-name" id="current-set-name">None</span>
-                </div>
-                <button class="change-btn" onclick="showQuestionPicker()">Change Questions</button>
-            </div>
-            
-            <div id="question-picker-ui" style="display: none;">
-                <div class="question-picker">
-                    <label class="picker-label">Select Question Set:</label>
+        <!-- Modal Interface -->
+        <div class="modal-overlay" id="modal-overlay">
+            <div class="modal-content">
+                <h3>Game Control</h3>
+                <button class="danger-btn hold-btn" data-action="change-questions">
+                    <span class="btn-text">Change Question Set</span>
+                </button>
+                <button class="danger-btn hold-btn" data-action="reset-game">
+                    <span class="btn-text">Reset Current Game</span>
+                </button>
+                <button class="cancel-btn" onclick="hideModal()">Cancel</button>
+                
+                <!-- Hidden question picker (moved from main UI) -->
+                <div id="modal-question-picker" style="display: none; margin-top: 20px;">
+                    <div class="picker-label">Select Question Set:</div>
                     <select class="picker-select" id="question-set-select">
                         <option value="">Loading question sets...</option>
                     </select>
                     <button class="load-btn" id="load-questions-btn" onclick="loadQuestionSet()" disabled>
                         Load Questions
                     </button>
+                    <div id="loading-status" class="loading" style="display: none;">
+                        Loading questions...
+                    </div>
+                    <div id="error-status" class="error" style="display: none;"></div>
                 </div>
-                <div id="loading-status" class="loading" style="display: none;">
-                    Loading questions...
-                </div>
-                <div id="error-status" class="error" style="display: none;"></div>
             </div>
         </div>
         
-        <!-- Game Controls (hidden until questions loaded) -->
+        <!-- Game Controls -->
         <div class="game-controls" id="game-controls">
-            <div class="status-card">
-                <div class="current-question">Question <span id="question-number">1</span> of <span id="total-questions">5</span></div>
-                <div class="question-text" id="question-text">Loading...</div>
+            <div class="status-card" id="no-questions-message">
+                <div class="current-question">No Questions Loaded</div>
+                <div class="question-text">Click "⚠️ GAME CONTROL" below to load a question set</div>
             </div>
             
-            <div class="question-nav">
-                <button class="nav-btn" id="prev-btn" onclick="previousQuestion()">← Previous</button>
-                <button class="nav-btn" id="next-btn" onclick="nextQuestion()">Next →</button>
+            <div class="status-card" id="question-status" style="display: none;">
+                <div class="current-question">
+                    <span id="set-indicator"></span>Question <span id="question-number">1</span> of <span id="total-questions">5</span>
+                </div>
+                <div class="question-text" id="question-text">Loading...</div>
             </div>
             
             <div class="answers-section">
@@ -460,8 +589,13 @@
                 </div>
             </div>
             
-            <div class="reset-section">
-                <button class="reset-btn" id="reset-btn" onclick="resetGame()">Reset Game</button>
+            <div class="question-nav">
+                <button class="nav-btn" id="prev-btn" onclick="previousQuestion()">← Previous</button>
+                <button class="nav-btn" id="next-btn" onclick="nextQuestion()">Next →</button>
+            </div>
+            
+            <div class="control-section">
+                <button class="control-btn" onclick="showModal()">⚠️ GAME CONTROL</button>
             </div>
         </div>
     </div>
@@ -562,16 +696,113 @@
             }
         }
 
-        function showQuestionPicker() {
-            document.getElementById('current-set-display').style.display = 'none';
-            document.getElementById('question-picker-ui').style.display = 'block';
-            document.getElementById('game-controls').classList.remove('visible');
+        function showModal() {
+            document.getElementById('modal-overlay').classList.add('visible');
+            
+            // Initialize hold buttons
+            const holdButtons = document.querySelectorAll('.hold-btn');
+            holdButtons.forEach(initHoldButton);
+            
+            // Vibrate for modal open
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
         }
 
-        function hideQuestionPicker() {
-            document.getElementById('current-set-display').style.display = 'block';
-            document.getElementById('question-picker-ui').style.display = 'none';
-            document.getElementById('game-controls').classList.add('visible');
+        function hideModal() {
+            document.getElementById('modal-overlay').classList.remove('visible');
+            document.getElementById('modal-question-picker').style.display = 'none';
+            
+            // Clean up any ongoing hold timers
+            document.querySelectorAll('.hold-btn').forEach(btn => {
+                btn.classList.remove('holding');
+                if (btn.holdTimer) {
+                    clearTimeout(btn.holdTimer);
+                    delete btn.holdTimer;
+                }
+            });
+        }
+
+        function initHoldButton(button) {
+            const action = button.getAttribute('data-action');
+            let holdTimer = null;
+            let isHolding = false;
+
+            function startHold() {
+                if (isHolding) return;
+                
+                isHolding = true;
+                button.classList.add('holding');
+                
+                // Haptic feedback on start
+                if (navigator.vibrate) {
+                    navigator.vibrate(30);
+                }
+                
+                holdTimer = setTimeout(() => {
+                    // Complete the action
+                    executeHoldAction(action);
+                    
+                    // Haptic feedback on complete
+                    if (navigator.vibrate) {
+                        navigator.vibrate([100, 50, 100]);
+                    }
+                    
+                    endHold();
+                }, 700);
+                
+                button.holdTimer = holdTimer;
+            }
+
+            function endHold() {
+                isHolding = false;
+                button.classList.remove('holding');
+                
+                if (holdTimer) {
+                    clearTimeout(holdTimer);
+                    holdTimer = null;
+                    delete button.holdTimer;
+                }
+            }
+
+            // Touch events
+            button.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startHold();
+            });
+
+            button.addEventListener('touchend', endHold);
+            button.addEventListener('touchleave', endHold);
+            button.addEventListener('touchcancel', endHold);
+
+            // Mouse events for desktop testing
+            button.addEventListener('mousedown', startHold);
+            button.addEventListener('mouseup', endHold);
+            button.addEventListener('mouseleave', endHold);
+        }
+
+        function executeHoldAction(action) {
+            switch (action) {
+                case 'change-questions':
+                    showQuestionPicker();
+                    break;
+                case 'reset-game':
+                    resetGame();
+                    hideModal();
+                    break;
+            }
+        }
+
+        function showQuestionPicker() {
+            document.getElementById('modal-question-picker').style.display = 'block';
+            // Clean up any ongoing hold timers
+            document.querySelectorAll('.hold-btn').forEach(btn => {
+                btn.classList.remove('holding');
+                if (btn.holdTimer) {
+                    clearTimeout(btn.holdTimer);
+                    delete btn.holdTimer;
+                }
+            });
         }
 
         async function loadQuestionSet() {
@@ -622,9 +853,8 @@
                 // Initialize new game state
                 initializeNewGame();
                 
-                // Hide picker and show game controls
-                hideQuestionPicker();
-                updateCurrentSetDisplay();
+                // Hide modal and show game controls
+                hideModal();
                 
                 // Vibrate for success
                 if (navigator.vibrate) {
@@ -710,10 +940,6 @@
             updateGameState();
         }
 
-        function updateCurrentSetDisplay() {
-            document.getElementById('current-set-name').textContent = currentQuestionSetName;
-        }
-
         async function checkExistingQuestions() {
             if (!database) return false;
             
@@ -725,8 +951,8 @@
                     currentQuestionSetName = questionSetData.name || 'Unknown';
                     
                     if (loadedQuestions.length > 0) {
-                        updateCurrentSetDisplay();
-                        hideQuestionPicker();
+                        // Questions exist, update display to show them
+                        updateDisplay();
                         return true;
                     }
                 }
@@ -741,11 +967,14 @@
             // Populate question picker dynamically
             populateQuestionSetPicker();
             
+            // Show initial state (no questions loaded or existing questions)
+            updateDisplay();
+            
             // Check if questions already loaded
             checkExistingQuestions().then(hasQuestions => {
                 if (!hasQuestions) {
-                    // No questions loaded, show picker
-                    showQuestionPicker();
+                    // No questions loaded, game controls stay hidden
+                    // User must click "⚠️ GAME CONTROL" to load questions
                 } else {
                     // Questions exist, proceed with game
                     updateDisplay();
@@ -766,7 +995,6 @@
                         const questionSetData = snapshot.val();
                         loadedQuestions = questionSetData.questions || [];
                         currentQuestionSetName = questionSetData.name || 'Unknown';
-                        updateCurrentSetDisplay();
                         updateDisplay();
                     }
                 });
@@ -780,11 +1008,21 @@
         }
 
         function updateDisplay() {
-            if (loadedQuestions.length === 0) return;
+            if (loadedQuestions.length === 0) {
+                // Show no questions message
+                document.getElementById('no-questions-message').style.display = 'block';
+                document.getElementById('question-status').style.display = 'none';
+                return;
+            }
+            
+            // Hide no questions message and show game status
+            document.getElementById('no-questions-message').style.display = 'none';
+            document.getElementById('question-status').style.display = 'block';
             
             const currentQ = loadedQuestions[gameState.currentQuestion];
             
             // Update question info
+            document.getElementById('set-indicator').textContent = `[${currentQuestionSetName}] `;
             document.getElementById('question-number').textContent = gameState.currentQuestion + 1;
             document.getElementById('total-questions').textContent = loadedQuestions.length;
             document.getElementById('question-text').textContent = currentQ.question;
@@ -861,32 +1099,30 @@
 
         function resetGame() {
             if (loadedQuestions.length === 0) {
-                alert('No questions loaded. Please load a question set first.');
+                console.log('No questions loaded. Please load a question set first.');
                 return;
             }
             
-            if (confirm('Are you sure you want to reset the game? This will clear scores and revealed answers but keep the current question set.')) {
-                // Rebuild revealedAnswers for current question set
-                const newRevealedAnswers = {};
-                loadedQuestions.forEach((q, qIndex) => {
-                    q.answers.forEach((a, aIndex) => {
-                        const key = `q${qIndex}_a${aIndex}`;
-                        newRevealedAnswers[key] = false;
-                    });
+            // Rebuild revealedAnswers for current question set
+            const newRevealedAnswers = {};
+            loadedQuestions.forEach((q, qIndex) => {
+                q.answers.forEach((a, aIndex) => {
+                    const key = `q${qIndex}_a${aIndex}`;
+                    newRevealedAnswers[key] = false;
                 });
-                
-                gameState = {
-                    currentQuestion: 0,
-                    team1Score: 0,
-                    team2Score: 0,
-                    revealedAnswers: newRevealedAnswers
-                };
-                updateGameState();
-                
-                // Vibrate for confirmation
-                if (navigator.vibrate) {
-                    navigator.vibrate([100, 50, 100]);
-                }
+            });
+            
+            gameState = {
+                currentQuestion: 0,
+                team1Score: 0,
+                team2Score: 0,
+                revealedAnswers: newRevealedAnswers
+            };
+            updateGameState();
+            
+            // Vibrate for confirmation
+            if (navigator.vibrate) {
+                navigator.vibrate([100, 50, 100]);
             }
         }
 
@@ -894,23 +1130,24 @@
         document.addEventListener('DOMContentLoaded', () => {
             initializeGame();
             
-            // Setup hold-to-wipe buttons
-            setupHoldButton('reset-btn', resetGame);
-            setupHoldButton('load-questions-btn', loadQuestionSet);
-            
             // Add visual feedback to all buttons
             const buttons = document.querySelectorAll('button');
             buttons.forEach(button => {
                 button.addEventListener('touchstart', (e) => {
-                    if (!button.classList.contains('hold-button')) {
-                        e.target.style.opacity = '0.7';
-                    }
+                    e.target.style.opacity = '0.7';
                 });
                 button.addEventListener('touchend', (e) => {
                     setTimeout(() => {
                         e.target.style.opacity = '1';
                     }, 100);
                 });
+            });
+            
+            // Close modal when clicking outside
+            document.getElementById('modal-overlay').addEventListener('click', (e) => {
+                if (e.target.id === 'modal-overlay') {
+                    hideModal();
+                }
             });
         });
     </script>

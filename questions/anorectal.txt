@@ -1,0 +1,35 @@
+QUESTION: We surveyed 100 surgeons: Name the most common causes of anal fissures
+1. Constipation and hard stools (35)
+2. Diarrhea and frequent bowel movements (25)
+3. Pregnancy and childbirth (20)
+4. Crohn's disease (15)
+5. Previous anal surgery (5)
+
+QUESTION: We surveyed 100 surgeons: What are the key components of conservative hemorrhoid management?
+1. High-fiber diet (30)
+2. Increased fluid intake (25)
+3. Sitz baths (20)
+4. Topical medications (15)
+5. Stool softeners (10)
+
+QUESTION: We surveyed 100 surgeons: Name the most common types of anorectal abscesses
+1. Perianal abscess (40)
+2. Ischiorectal abscess (30)
+3. Intersphincteric abscess (15)
+4. Supralevator abscess (10)
+5. Submucosal abscess (5)
+
+QUESTION: We surveyed 100 surgeons: What are the essential steps in fistula-in-ano evaluation?
+1. Digital rectal examination (25)
+2. MRI or endoanal ultrasound (25)
+3. Examination under anesthesia (20)
+4. Fistulography (15)
+5. Proctoscopy (10)
+6. Assessment of continence (5)
+
+QUESTION: We surveyed 100 surgeons: Name the most important risk factors for anal cancer
+1. HPV infection (35)
+2. Immunosuppression (25)
+3. History of cervical/vulvar cancer (15)
+4. Chronic anal inflammation (15)
+5. Smoking (10)
