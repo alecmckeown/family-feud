@@ -146,9 +146,46 @@
         }
         
         .current-question {
-            font-size: 1.1em;
-            margin-bottom: 10px;
-            color: #FFD700;
+            background: linear-gradient(135deg, #2C5282 0%, #2D3748 100%);
+            border: 2px solid #4A90E2;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            color: white;
+            font-size: 18px;
+            line-height: 1.5;
+            font-weight: 500;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .current-question::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #4A90E2, #63B3ED, #4A90E2);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+        
+        @keyframes shimmer {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        
+        .question-counter {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 16px;
+            color: #63B3ED;
+            margin-right: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .question-text {
@@ -899,11 +936,8 @@
                 <div class="question-text">Click "⚠️ GAME CONTROL" below to load a question set</div>
             </div>
             
-            <div class="status-card" id="question-status" style="display: none;">
-                <div class="current-question">
-                    <span id="set-indicator"></span>Question <span id="question-number">1</span> of <span id="total-questions">5</span>
-                </div>
-                <div class="question-text" id="question-text">Loading...</div>
+            <div class="current-question" id="question-status" style="display: none;">
+                <span class="question-counter">1/5:</span> Loading...
             </div>
             
             <!-- Buzz Results Section -->
@@ -1640,12 +1674,14 @@
 
             showGameControls();
             
-            document.getElementById('set-indicator').textContent = `[${currentQuestionSetName}] `;
-            document.getElementById('question-number').textContent = currentQuestionIndex + 1;
-            document.getElementById('total-questions').textContent = currentQuestions.length;
-            
+            // New format: "1/5: question text"
+            const questionNumber = currentQuestionIndex + 1;
+            const totalQuestions = currentQuestions.length;
             const currentQ = currentQuestions[currentQuestionIndex];
-            document.getElementById('question-text').textContent = currentQ ? currentQ.question : 'Loading...';
+            const questionText = currentQ ? currentQ.question : 'Loading...';
+            
+            document.getElementById('question-status').innerHTML = 
+                `<span class="question-counter">${questionNumber}/${totalQuestions}:</span> ${questionText}`;
             
             // Only allow navigation in round_over phase (when round is complete)
             const canNavigate = gamePhase === 'round_over';
