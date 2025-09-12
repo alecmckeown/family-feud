@@ -15,3 +15,15 @@ QUESTION: What happens when we create a really long question, one that is so lon
 14. be
 15. worth
 16. checking
+
+QUESTION: What happens when we create a really long question, one that is so long that it might overflow the text box. Does the text get super tiny? I don't know. Let's find out! This is an adventure-mystery that focuses on the complex relationship between Sherlock Holmes and his nemesis, James Moriarty. I love these characters and love pastiches in general - this book is a massive exception. I won’t even be placing this on my Holmes Bookshelf. This book suffers from throwing too many elements into the mix - mastermind criminal, plot to overthrow the kingdom, cryptid arachnids with magical venom, a cabal of powerful men drawn to a remote location for mind-altering experiments, dramatic navel-gazing about a dark secret death that is never fully elucidated... I mean, damn, it’s only 300 pages! The author suffers from Little Boy Story-Telling - there is SO much action and SO much evil and SO much overwrought emotion and SO much glossing over of the “boring” parts of the story that actually make it a cohesive whole - and it is distractingly tangential to read. 
+1. Maybe
+2. we
+3. try
+4. something
+5. a
+6. bit
+7. more
+8. likely
+9. to
+10. happen

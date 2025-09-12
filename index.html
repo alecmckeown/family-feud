@@ -88,7 +88,7 @@
             transform: translateX(-50%);
             width: 90%;
             max-width: 1000px;
-            height: calc(100vh - 320px);
+            height: calc(100vh - 286px);
             background: rgba(0,0,0,0.3);
             border-radius: 0 0 15px 15px;
             z-index: 4;
@@ -96,6 +96,11 @@
             /* Content styling */
             padding: 20px;
             overflow-y: auto;
+            
+            /* Use CSS Grid to auto-fit answers */
+            display: grid;
+            grid-template-rows: repeat(var(--answer-count), 1fr);
+            gap: 5px;
             
             /* Ensure answers fit properly */
             box-sizing: border-box;
@@ -107,20 +112,15 @@
             justify-content: space-between;
             background: #FFD700;
             color: #000;
-            margin: 10px 0;
             padding: 15px 25px;
             border-radius: 10px;
-            font-size: 1.5em;
             font-weight: bold;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            min-height: 60px;
             transition: all 0.3s ease;
+            /* Grid will handle sizing automatically */
+            min-height: 0;
+            font-size: 1.5em;
         }
-        
-        /* Dynamic answer row sizing */
-        .answer-slot.short { min-height: 50px; font-size: 1.6em; }    /* < 20 chars */
-        .answer-slot.medium { min-height: 60px; font-size: 1.5em; }   /* 20-40 chars */
-        .answer-slot.long { min-height: 80px; font-size: 1.3em; }     /* 40+ chars */
         
         .answer-slot.hidden {
             background: #333;
@@ -506,6 +506,10 @@
             }
             
             const currentQ = currentQuestions[currentQuestionIndex];
+            
+            // Set CSS custom property for grid rows
+            answersBoard.style.setProperty('--answer-count', currentQ.answers.length);
+            
             currentQ.answers.forEach((answer, index) => {
                 const answerSlot = document.createElement('div');
                 const key = `q${currentQuestionIndex}_a${index}`;
@@ -521,8 +525,10 @@
                 answersBoard.appendChild(answerSlot);
             });
             
-            // Apply dynamic sizing after building answers
-            applyDynamicSizing();
+            // Apply dynamic font sizing based on answer count
+            setTimeout(() => {
+                applyDynamicSizing();
+            }, 10);
         }
         
         function updateTeamColors(teams) {
@@ -631,20 +637,44 @@
                 questionEl.classList.add('long');
             }
             
-            // Dynamic answer sizing
+            // Dynamic font sizing for answers based on count (CSS Grid handles heights)
             const answerSlots = document.querySelectorAll('.answer-slot');
+            if (answerSlots.length === 0) return;
+            
+            // Calculate font size based on number of answers
+            let baseFontSize;
+            if (answerSlots.length <= 6) {
+                baseFontSize = 1.5; // Comfortable size for few answers
+            } else if (answerSlots.length <= 12) {
+                baseFontSize = 1.2; // Medium size for moderate count
+            } else {
+                baseFontSize = 1.0; // Smaller size for many answers
+            }
+            
+            // Apply font sizing to all slots
             answerSlots.forEach(slot => {
                 const answerText = slot.querySelector('.answer-text')?.textContent || '';
                 const answerLength = answerText.length;
                 
-                slot.classList.remove('short', 'medium', 'long');
+                // Adjust font size slightly based on text length
+                let fontSize = baseFontSize;
                 if (answerLength < 20) {
-                    slot.classList.add('short');
-                } else if (answerLength < 40) {
-                    slot.classList.add('medium');
-                } else {
-                    slot.classList.add('long');
+                    fontSize *= 1.1; // Slightly larger for short text
+                } else if (answerLength >= 40) {
+                    fontSize *= 0.9; // Slightly smaller for long text
                 }
+                
+                // Ensure minimum readability
+                fontSize = Math.max(0.8, fontSize);
+                
+                // Apply font size and clear any previous inline styles
+                slot.style.fontSize = `${fontSize}em`;
+                slot.style.minHeight = '';
+                slot.style.marginTop = '';
+                slot.style.marginBottom = '';
+                
+                // Remove old size classes
+                slot.classList.remove('short', 'medium', 'long', 'small', 'large');
             });
         }
 
@@ -832,6 +862,15 @@
 
         // Initialize the game when page loads
         document.addEventListener('DOMContentLoaded', initializeGame);
+        
+        // Reapply dynamic sizing when window is resized
+        window.addEventListener('resize', () => {
+            // Debounce resize events to avoid excessive calculations
+            clearTimeout(window.resizeTimeout);
+            window.resizeTimeout = setTimeout(() => {
+                applyDynamicSizing();
+            }, 100);
+        });
     </script>
 </body>
 </html>
