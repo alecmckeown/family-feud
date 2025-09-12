@@ -813,6 +813,20 @@
             }
 
             /**
+             * Creates initial game state object with custom revealed answers
+             */
+            getInitialGameStateWithAnswers(revealedAnswers, currentQuestion = 0) {
+                return {
+                    currentQuestion: currentQuestion,
+                    team1Score: 0,
+                    team2Score: 0,
+                    revealedAnswers: revealedAnswers,
+                    strikes: 0,
+                    phase: 'setup'
+                };
+            }
+
+            /**
              * Creates initial root state structure for game operations
              */
             getInitialRootForGame(currentQuestion = 0) {
@@ -1137,9 +1151,7 @@
             async clearTeams() {
                 try {
                     await this.db.ref('teams').remove();
-                    await this.db.ref('buzzer').set({
-                        active: false, firstBuzz: null, controllingTeam: null
-                    });
+                    await this.db.ref('buzzer').set(this.getInitialBuzzer());
                     return { success: true };
                 } catch (error) {
                     return { success: false, error: error.message };
@@ -1166,14 +1178,10 @@
                     // Now reset game state atomically
                     const gameStateResult = await this.db.ref('gameState').transaction((currentData) => {
                         if (currentData === null) {
-                            const initialState = this.getInitialGameState(0);
-                            initialState.revealedAnswers = revealedAnswers;
-                            return initialState;
+                            return this.getInitialGameStateWithAnswers(revealedAnswers, 0);
                         }
                         
-                        const initialState = this.getInitialGameState(0);
-                        initialState.revealedAnswers = revealedAnswers;
-                        return initialState;
+                        return this.getInitialGameStateWithAnswers(revealedAnswers, 0);
                     });
                     
                     if (!gameStateResult.committed) {
@@ -1314,7 +1322,7 @@
                 statusEl.textContent = 'Connected';
                 statusEl.className = 'connection-status connected';
             } else {
-                statusEl.textContent = 'Offline';
+                statusEl.textContent = 'Offline -- Refresh the page';
                 statusEl.className = 'connection-status disconnected';
             }
         }
@@ -1503,9 +1511,9 @@
 
             // Listen for question set changes
             database.ref('questionSet').on('value', (snapshot) => {
-                if (snapshot.exists()) {
+                if (snapshot.exists() && snapshot.val().questions && Array.isArray(snapshot.val().questions)) {
                     const questionSetData = snapshot.val();
-                    currentQuestions = questionSetData.questions || [];
+                    currentQuestions = questionSetData.questions;
                     currentQuestionSetName = questionSetData.name || 'Unknown';
                     updateQuestionDisplay();
                 } else {
