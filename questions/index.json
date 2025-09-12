@@ -1,5 +1,6 @@
 [
 	{"file": "sages.txt", "name": "SAGES & Endoscopy"},
 	{"file": "anorectal.txt", "name": "Anorectal"},
-	{"file": "family.txt", "name": "McKeown Family"}
+	{"file": "family.txt", "name": "McKeown Family"},
+	{"file": "edgecases.txt", "name": "Edge Cases"}
 ]

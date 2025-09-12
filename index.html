@@ -65,12 +65,11 @@
             border-bottom: 2px solid rgba(255,255,255,0.2);
             z-index: 6;
             
-            /* Perfect vertical and horizontal centering */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 0 30px;
+            /* CSS Grid centering - most reliable */
+            display: grid !important;
+            place-items: center !important;
+            text-align: center !important;
+            padding: 20px 30px;
             
             /* Typography */
             font-size: 1.8em;
@@ -79,6 +78,7 @@
             
             /* Overflow handling */
             overflow: hidden;
+            box-sizing: border-box;
         }
         
         .answers-board {
