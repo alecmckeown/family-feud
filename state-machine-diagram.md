@@ -5,10 +5,10 @@
 ```
 setup
   ├─→ countdown (via "Start Face-off")
-  ├─→ main_game (via "Skip Face-off") 
+  ├─→ round_over (via "Skip Face-off") 
   └─→ setup (via question navigation)
 
-countdown (5 seconds)
+countdown (3 seconds)
   └─→ buzzer_active (automatic)
 
 buzzer_active
@@ -39,7 +39,7 @@ round_over
 ## State Behaviors
 
 ### setup
-- **Navigation**: Enabled (prev/next question)
+- **Navigation**: Disabled
 - **Answer Buttons**: Disabled
 - **Face-off Controls**: Show "Start Face-off" and "Skip Face-off"
 - **Auto-transitions**: None
@@ -48,7 +48,7 @@ round_over
 - **Navigation**: Disabled
 - **Answer Buttons**: Disabled
 - **Display**: Shows countdown timer
-- **Auto-transitions**: buzzer_active after 5 seconds
+- **Auto-transitions**: buzzer_active after 3 seconds
 
 ### buzzer_active
 - **Navigation**: Disabled
@@ -73,11 +73,12 @@ round_over
 - **Navigation**: Disabled
 - **Answer Buttons**: Only non-controlling team enabled
 - **Strike Behavior**: Any strike ends round
-- **Auto-transitions**: round_over on answer or strike
+- **Auto-transitions**: round_over on any answer (correct) or strike
 
 ### round_over
 - **Navigation**: Enabled (can move to next question)
-- **Answer Buttons**: Disabled
+- **Answer Buttons**: Enabled for both teams (reveal only, no scoring)
+- **Strike Button**: Disabled
 - **Display**: Shows round results, next question preview
 - **Auto-transitions**: None (admin chooses next action)
 ```

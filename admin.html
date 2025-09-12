@@ -935,6 +935,10 @@
                             if (!newCompletedFaceoffs.includes(currentQ)) {
                                 newCompletedFaceoffs = [...newCompletedFaceoffs, currentQ];
                             }
+                        } else if (gameState.phase === 'steal') {
+                            // In steal phase, any correct answer ends the round
+                            newPhase = 'round_over';
+                            newBuzzer.controllingTeam = null;
                         }
 
                         // Check if all answers are now revealed for this question
@@ -1049,7 +1053,7 @@
 
             async startFaceoff() {
                 try {
-                    await this.db.ref('gameState/phase').set('faceoff');
+                    //await this.db.ref('gameState/phase').set('faceoff');
                     return await this.startCountdown();
                 } catch (error) {
                     return { success: false, error: error.message };
@@ -1064,7 +1068,7 @@
                             return {
                                 gameState: {
                                     currentQuestion: 0,
-                                    phase: 'main_game',
+                                    phase: 'round_over',
                                     strikes: 0,
                                     team1Score: 0,
                                     team2Score: 0,
@@ -1087,7 +1091,7 @@
                         const newCompletedFaceoffs = [...(root.completedFaceoffs || []), currentQ];
                         return {
                             ...root,
-                            gameState: { ...root.gameState, phase: 'main_game' },
+                            gameState: { ...root.gameState, phase: 'round_over' },
                             buzzer: { active: false, firstBuzz: null, controllingTeam: null },
                             completedFaceoffs: newCompletedFaceoffs
                         };
@@ -1101,7 +1105,7 @@
             async startCountdown() {
                 try {
                     await this.db.ref('gameState/phase').set('countdown');
-                    let timeLeft = 5;
+                    let timeLeft = 3;
                     await this.db.ref('countdown').set({ active: true, timeLeft: timeLeft });
                     
                     const countdownInterval = setInterval(async () => {
@@ -1266,6 +1270,71 @@
                     return { success: false, error: error.message };
                 }
             }
+
+            async revealAnswerOnly(answerIndex) {
+                try {
+                    const result = await this.db.ref().transaction((root) => {
+                        if (root === null) {
+                            // First call - provide initial state with the answer revealed
+                            return {
+                                gameState: {
+                                    currentQuestion: 0,
+                                    phase: 'round_over',
+                                    strikes: 0,
+                                    team1Score: 0,
+                                    team2Score: 0,
+                                    revealedAnswers: {
+                                        [`q0_a${answerIndex}`]: true
+                                    }
+                                },
+                                buzzer: {
+                                    active: false,
+                                    controllingTeam: null,
+                                    firstBuzz: null
+                                },
+                                completedFaceoffs: [],
+                                questionSet: {},
+                                teams: null,
+                                countdown: { active: false, timeLeft: 0 }
+                            };
+                        }
+
+                        if (!root || !root.gameState) return undefined;
+
+                        const gameState = root.gameState;
+                        const currentQ = gameState.currentQuestion || 0;
+                        const key = `q${currentQ}_a${answerIndex}`;
+
+                        if (gameState.revealedAnswers && gameState.revealedAnswers[key]) {
+                            return undefined; // Already revealed, abort transaction
+                        }
+
+                        const newRevealedAnswers = {
+                            ...(gameState.revealedAnswers || {}),
+                            [key]: true
+                        };
+
+                        // Only update revealed answers, don't change game state or scores
+                        return {
+                            ...root,
+                            gameState: {
+                                ...gameState,
+                                revealedAnswers: newRevealedAnswers
+                            }
+                        };
+                    });
+                    
+                    if (result.committed) {
+                        return { success: true, result };
+                    } else {
+                        // Transaction was aborted, likely because answer was already revealed
+                        return { success: true, result, message: 'Answer already revealed' };
+                    }
+                } catch (error) {
+                    console.error('Reveal answer error:', error);
+                    return { success: false, error: error.message || 'Unknown error' };
+                }
+            }
         }
 
         // READ-ONLY STATE - Updated only by Firebase listeners
@@ -1320,8 +1389,8 @@
             const currentQ = currentQuestions[currentQuestionIndex];
             document.getElementById('question-text').textContent = currentQ ? currentQ.question : 'Loading...';
             
-            // Only allow navigation in setup or round_over phases
-            const canNavigate = gamePhase === 'setup' || gamePhase === 'round_over';
+            // Only allow navigation in round_over phase (when round is complete)
+            const canNavigate = gamePhase === 'round_over';
             
             // Update navigation buttons
             document.getElementById('prev-btn').disabled = !canNavigate || currentQuestionIndex === 0;
@@ -1352,13 +1421,25 @@
                 team1Btn.className = 'team-answer-btn team1';
                 team1Btn.textContent = teams.team1?.name || 'Team 1';
                 team1Btn.disabled = isRevealed || !isTeamButtonEnabled(1);
-                team1Btn.onclick = () => awardAnswer(1, index);
+                team1Btn.onclick = () => {
+                    if (gamePhase === 'round_over') {
+                        revealAnswerOnly(index);
+                    } else {
+                        awardAnswer(1, index);
+                    }
+                };
                 
                 const team2Btn = document.createElement('button');
                 team2Btn.className = 'team-answer-btn team2';
                 team2Btn.textContent = teams.team2?.name || 'Team 2';
                 team2Btn.disabled = isRevealed || !isTeamButtonEnabled(2);
-                team2Btn.onclick = () => awardAnswer(2, index);
+                team2Btn.onclick = () => {
+                    if (gamePhase === 'round_over') {
+                        revealAnswerOnly(index);
+                    } else {
+                        awardAnswer(2, index);
+                    }
+                };
                 
                 const strikeBtn = document.createElement('button');
                 strikeBtn.className = 'strike-btn';
@@ -1440,6 +1521,7 @@
                 case 'faceoff': return teamNumber === buzzerState.controllingTeam;
                 case 'main_game': return teamNumber === buzzerState.controllingTeam;
                 case 'steal': return teamNumber !== buzzerState.controllingTeam;
+                case 'round_over': return true; // Allow revealing any answer for viewing
                 default: return false;
             }
         }
@@ -1638,6 +1720,20 @@
                 console.error('Failed to award answer:', result.error);
             } else if (navigator.vibrate) {
                 navigator.vibrate(50);
+            }
+        }
+
+        async function revealAnswerOnly(answerIndex) {
+            const result = await gameManager.revealAnswerOnly(answerIndex);
+            if (!result.success) {
+                console.error('Failed to reveal answer:', result.error || 'Unknown error');
+            } else {
+                if (result.message) {
+                    console.log(result.message); // Log informational messages
+                }
+                if (navigator.vibrate) {
+                    navigator.vibrate(30);
+                }
             }
         }
 
