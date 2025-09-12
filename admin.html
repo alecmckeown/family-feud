@@ -616,7 +616,7 @@
     
     <div class="admin-container">
         <div class="header">
-            <h1 class="title">ADMIN CONTROL</h1>
+            <h1 class="title">ADMIN CONTROL v8</h1>
             <div class="subtitle">Family Feud</div>
         </div>
         
@@ -906,7 +906,14 @@
                         let newBuzzer = { ...buzzer };
                         let newStrikes_final = newStrikes;
 
-                        if (newStrikes >= 3) {
+                        // Handle faceoff strikes differently - 1 strike reverses control
+                        if (gameState.phase === 'faceoff') {
+                            // In faceoff, any strike immediately reverses control and resets strikes
+                            newBuzzer.controllingTeam = buzzer.controllingTeam === 1 ? 2 : 1;
+                            newStrikes_final = 0;
+                            // Stay in faceoff phase
+                        } else if (newStrikes >= 3) {
+                            // Normal main_game/steal behavior - 3 strikes needed
                             if (buzzer.controllingTeam === 1) {
                                 newPhase = 'steal';
                                 newBuzzer.controllingTeam = 2;
@@ -1054,6 +1061,31 @@
                     return { success: false, error: error.message };
                 }
             }
+
+            async transitionToFaceoff(winningTeam) {
+                try {
+                    const result = await this.db.ref().transaction((root) => {
+                        if (!root || !root.gameState || !root.buzzer) return undefined;
+                        
+                        return {
+                            ...root,
+                            gameState: {
+                                ...root.gameState,
+                                phase: 'faceoff',
+                                strikes: 0
+                            },
+                            buzzer: {
+                                ...root.buzzer,
+                                controllingTeam: winningTeam,
+                                active: false
+                            }
+                        };
+                    });
+                    return { success: result.committed, result };
+                } catch (error) {
+                    return { success: false, error: error.message };
+                }
+            }
         }
 
         // READ-ONLY STATE - Updated only by Firebase listeners
@@ -1108,9 +1140,12 @@
             const currentQ = currentQuestions[currentQuestionIndex];
             document.getElementById('question-text').textContent = currentQ ? currentQ.question : 'Loading...';
             
+            // Only allow navigation in setup or round_over phases
+            const canNavigate = gamePhase === 'setup' || gamePhase === 'round_over';
+            
             // Update navigation buttons
-            document.getElementById('prev-btn').disabled = currentQuestionIndex === 0;
-            document.getElementById('next-btn').disabled = currentQuestionIndex === currentQuestions.length - 1;
+            document.getElementById('prev-btn').disabled = !canNavigate || currentQuestionIndex === 0;
+            document.getElementById('next-btn').disabled = !canNavigate || currentQuestionIndex === currentQuestions.length - 1;
             
             updateAnswerButtons();
         }
@@ -1229,7 +1264,7 @@
         }
 
         function isStrikeButtonEnabled() {
-            return (gamePhase === 'main_game' || gamePhase === 'steal') && 
+            return (gamePhase === 'faceoff' || gamePhase === 'main_game' || gamePhase === 'steal') && 
                    buzzerState.controllingTeam !== null;
         }
 
@@ -1291,8 +1326,16 @@
 
             // Listen for buzzer state
             database.ref('buzzer').on('value', (snapshot) => {
+                const prevBuzzerState = buzzerState;
                 buzzerState = snapshot.exists() ? snapshot.val() : 
                     { active: false, firstBuzz: null, controllingTeam: null };
+                
+                // Check if we just got a first buzz and need to transition to faceoff
+                if (!prevBuzzerState.firstBuzz && buzzerState.firstBuzz && gamePhase === 'buzzer_active') {
+                    console.log('Transitioning to faceoff for team:', buzzerState.firstBuzz.team);
+                    gameManager.transitionToFaceoff(buzzerState.firstBuzz.team);
+                }
+                
                 updateBuzzerDisplay();
                 updateAnswerButtons();
             });
