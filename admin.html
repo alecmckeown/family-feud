@@ -762,9 +762,80 @@
                 this.db = database;
             }
 
+            /**
+             * Creates initial game state object
+             */
+            getInitialGameState(currentQuestion = 0) {
+                return {
+                    currentQuestion: currentQuestion,
+                    team1Score: 0,
+                    team2Score: 0,
+                    revealedAnswers: {},
+                    strikes: 0,
+                    phase: 'setup'
+                };
+            }
+
+            /**
+             * Creates initial buzzer state object
+             */
+            getInitialBuzzer() {
+                return {
+                    active: false,
+                    firstBuzz: null,
+                    controllingTeam: null
+                };
+            }
+
+            /**
+             * Creates initial root state structure with question set
+             */
+            getInitialRootWithQuestions(questionSetData) {
+                const revealedAnswers = {};
+                questionSetData.questions.forEach((q, qIndex) => {
+                    q.answers.forEach((a, aIndex) => {
+                        const key = `q${qIndex}_a${aIndex}`;
+                        revealedAnswers[key] = false;
+                    });
+                });
+
+                return {
+                    questionSet: questionSetData,
+                    gameState: {
+                        ...this.getInitialGameState(),
+                        revealedAnswers: revealedAnswers
+                    },
+                    teams: null,
+                    buzzer: this.getInitialBuzzer(),
+                    completedFaceoffs: [],
+                    countdown: { active: false, timeLeft: 0 }
+                };
+            }
+
+            /**
+             * Creates initial root state structure for game operations
+             */
+            getInitialRootForGame(currentQuestion = 0) {
+                return {
+                    gameState: this.getInitialGameState(currentQuestion),
+                    buzzer: this.getInitialBuzzer(),
+                    completedFaceoffs: [],
+                    questionSet: {},
+                    teams: null,
+                    countdown: { active: false, timeLeft: 0 }
+                };
+            }
+
             async loadQuestionSet(questionSetData) {
                 try {
                     const result = await this.db.ref().transaction((root) => {
+                        if (root === null) {
+                            return this.getInitialRootWithQuestions(questionSetData);
+                        }
+                        
+                        if (!root) return undefined;
+                        
+                        // Update existing root with new question set
                         const revealedAnswers = {};
                         questionSetData.questions.forEach((q, qIndex) => {
                             q.answers.forEach((a, aIndex) => {
@@ -773,22 +844,14 @@
                             });
                         });
 
-                        // Handle the initial null case properly
-                        const baseRoot = root || {};
-                        
                         return {
-                            ...baseRoot,
+                            ...root,
                             questionSet: questionSetData,
                             gameState: {
-                                currentQuestion: 0,
-                                team1Score: 0,
-                                team2Score: 0,
-                                revealedAnswers: revealedAnswers,
-                                strikes: 0,
-                                phase: 'setup'
+                                ...this.getInitialGameState(),
+                                revealedAnswers: revealedAnswers
                             },
-                            teams: null,
-                            buzzer: { active: false, firstBuzz: null, controllingTeam: null },
+                            buzzer: this.getInitialBuzzer(),
                             completedFaceoffs: [],
                             countdown: { active: false, timeLeft: 0 }
                         };
@@ -803,15 +866,7 @@
                 try {
                     const result = await this.db.ref('gameState').transaction((gameState) => {
                         if (gameState === null) {
-                            // First call - provide initial state with incremented question
-                            return {
-                                currentQuestion: 1,
-                                team1Score: 0,
-                                team2Score: 0,
-                                revealedAnswers: {},
-                                strikes: 0,
-                                phase: 'setup'
-                            };
+                            return this.getInitialGameState(1);
                         }
                         
                         if (!gameState) return undefined;
@@ -837,15 +892,7 @@
                 try {
                     const result = await this.db.ref('gameState').transaction((gameState) => {
                         if (gameState === null) {
-                            // First call - provide initial state at question 0 (can't go lower)
-                            return {
-                                currentQuestion: 0,
-                                team1Score: 0,
-                                team2Score: 0,
-                                revealedAnswers: {},
-                                strikes: 0,
-                                phase: 'setup'
-                            };
+                            return this.getInitialGameState(0);
                         }
                         
                         if (!gameState) return undefined;
@@ -871,30 +918,12 @@
                 try {
                     const result = await this.db.ref().transaction((root) => {
                         if (root === null) {
-                            // First call - we need to provide what we expect the initial state to be
-                            // Since award answer should only happen when game is initialized, 
-                            // we shouldn't normally hit this, but we need to handle it properly
-                            return {
-                                gameState: {
-                                    currentQuestion: 0,
-                                    phase: 'faceoff', // assume we're in faceoff if awarding
-                                    strikes: 0,
-                                    team1Score: 0,
-                                    team2Score: 0,
-                                    revealedAnswers: {
-                                        [`q0_a${answerIndex}`]: true
-                                    }
-                                },
-                                buzzer: {
-                                    active: false,
-                                    controllingTeam: teamNumber,
-                                    firstBuzz: null
-                                },
-                                completedFaceoffs: [0],
-                                questionSet: root?.questionSet || {},
-                                teams: root?.teams || null,
-                                countdown: { active: false, timeLeft: 0 }
-                            };
+                            const initialRoot = this.getInitialRootForGame(0);
+                            initialRoot.gameState.phase = 'faceoff';
+                            initialRoot.gameState.revealedAnswers[`q0_a${answerIndex}`] = true;
+                            initialRoot.buzzer.controllingTeam = teamNumber;
+                            initialRoot.completedFaceoffs = [0];
+                            return initialRoot;
                         }
                         
                         if (!root) {
@@ -983,26 +1012,11 @@
                 try {
                     const result = await this.db.ref().transaction((root) => {
                         if (root === null) {
-                            // First call - provide initial state with 1 strike
-                            return {
-                                gameState: {
-                                    currentQuestion: 0,
-                                    phase: 'main_game',
-                                    strikes: 1,
-                                    team1Score: 0,
-                                    team2Score: 0,
-                                    revealedAnswers: {}
-                                },
-                                buzzer: {
-                                    active: false,
-                                    controllingTeam: 1,
-                                    firstBuzz: null
-                                },
-                                completedFaceoffs: [],
-                                questionSet: {},
-                                teams: null,
-                                countdown: { active: false, timeLeft: 0 }
-                            };
+                            const initialRoot = this.getInitialRootForGame(0);
+                            initialRoot.gameState.phase = 'main_game';
+                            initialRoot.gameState.strikes = 1;
+                            initialRoot.buzzer.controllingTeam = 1;
+                            return initialRoot;
                         }
                         
                         if (!root || !root.gameState || !root.buzzer) return undefined;
@@ -1064,26 +1078,10 @@
                 try {
                     const result = await this.db.ref().transaction((root) => {
                         if (root === null) {
-                            // First call - provide initial state
-                            return {
-                                gameState: {
-                                    currentQuestion: 0,
-                                    phase: 'round_over',
-                                    strikes: 0,
-                                    team1Score: 0,
-                                    team2Score: 0,
-                                    revealedAnswers: {}
-                                },
-                                buzzer: {
-                                    active: false,
-                                    firstBuzz: null,
-                                    controllingTeam: null
-                                },
-                                completedFaceoffs: [0],
-                                questionSet: {},
-                                teams: null,
-                                countdown: { active: false, timeLeft: 0 }
-                            };
+                            const initialRoot = this.getInitialRootForGame(0);
+                            initialRoot.gameState.phase = 'round_over';
+                            initialRoot.completedFaceoffs = [0];
+                            return initialRoot;
                         }
                         
                         if (!root || !root.gameState) return undefined;
@@ -1168,25 +1166,14 @@
                     // Now reset game state atomically
                     const gameStateResult = await this.db.ref('gameState').transaction((currentData) => {
                         if (currentData === null) {
-                            // First call - provide initial state
-                            return {
-                                currentQuestion: 0,
-                                team1Score: 0,
-                                team2Score: 0,
-                                revealedAnswers: revealedAnswers,
-                                strikes: 0,
-                                phase: 'setup'
-                            };
+                            const initialState = this.getInitialGameState(0);
+                            initialState.revealedAnswers = revealedAnswers;
+                            return initialState;
                         }
                         
-                        return {
-                            currentQuestion: 0,
-                            team1Score: 0,
-                            team2Score: 0,
-                            revealedAnswers: revealedAnswers,
-                            strikes: 0,
-                            phase: 'setup'
-                        };
+                        const initialState = this.getInitialGameState(0);
+                        initialState.revealedAnswers = revealedAnswers;
+                        return initialState;
                     });
                     
                     if (!gameStateResult.committed) {
@@ -1195,9 +1182,7 @@
                     
                     // Clear other game data
                     await this.db.ref('teams').remove();
-                    await this.db.ref('buzzer').set({
-                        active: false, firstBuzz: null, controllingTeam: null
-                    });
+                    await this.db.ref('buzzer').set(this.getInitialBuzzer());
                     await this.db.ref('completedFaceoffs').remove();
                     await this.db.ref('countdown').set({ active: false, timeLeft: 0 });
                     
@@ -1212,15 +1197,9 @@
                     // Use transactions with proper null handling
                     const gameStateResult = await this.db.ref('gameState').transaction((currentData) => {
                         if (currentData === null) {
-                            // First call - establish initial state
-                            return {
-                                phase: 'faceoff',
-                                strikes: 0,
-                                currentQuestion: 0,
-                                team1Score: 0,
-                                team2Score: 0,
-                                revealedAnswers: {}
-                            };
+                            const initialState = this.getInitialGameState(0);
+                            initialState.phase = 'faceoff';
+                            return initialState;
                         }
                         
                         if (!currentData) {
@@ -1242,11 +1221,9 @@
                     // Update buzzer with same pattern
                     const buzzerResult = await this.db.ref('buzzer').transaction((currentData) => {
                         if (currentData === null) {
-                            return {
-                                active: false,
-                                controllingTeam: winningTeam,
-                                firstBuzz: null
-                            };
+                            const initialBuzzer = this.getInitialBuzzer();
+                            initialBuzzer.controllingTeam = winningTeam;
+                            return initialBuzzer;
                         }
                         
                         if (!currentData) {
@@ -1275,28 +1252,10 @@
                 try {
                     const result = await this.db.ref().transaction((root) => {
                         if (root === null) {
-                            // First call - provide initial state with the answer revealed
-                            return {
-                                gameState: {
-                                    currentQuestion: 0,
-                                    phase: 'round_over',
-                                    strikes: 0,
-                                    team1Score: 0,
-                                    team2Score: 0,
-                                    revealedAnswers: {
-                                        [`q0_a${answerIndex}`]: true
-                                    }
-                                },
-                                buzzer: {
-                                    active: false,
-                                    controllingTeam: null,
-                                    firstBuzz: null
-                                },
-                                completedFaceoffs: [],
-                                questionSet: {},
-                                teams: null,
-                                countdown: { active: false, timeLeft: 0 }
-                            };
+                            const initialRoot = this.getInitialRootForGame(0);
+                            initialRoot.gameState.phase = 'round_over';
+                            initialRoot.gameState.revealedAnswers[`q0_a${answerIndex}`] = true;
+                            return initialRoot;
                         }
 
                         if (!root || !root.gameState) return undefined;
