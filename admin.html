@@ -1647,9 +1647,19 @@
                 // Determine button state and styling
                 if (isRevealed) {
                     answerButton.className += ' disabled';
-                    if (activeTeam === 1) {
+                    
+                    // Determine which team color to use for revealed answers
+                    let teamForStyling;
+                    if (gamePhase === 'round_over') {
+                        // In round_over, use the controlling team, or fallback to team 1
+                        teamForStyling = buzzerState.controllingTeam || 1;
+                    } else {
+                        teamForStyling = activeTeam;
+                    }
+                    
+                    if (teamForStyling === 1) {
                         answerButton.className += ' team1-revealed';
-                    } else if (activeTeam === 2) {
+                    } else if (teamForStyling === 2) {
                         answerButton.className += ' team2-revealed';
                     }
                     answerButton.disabled = true;
