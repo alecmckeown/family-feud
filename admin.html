@@ -1252,6 +1252,9 @@
                         const currentQ = gameState.currentQuestion || 0;
                         const key = `q${currentQ}_a${answerIndex}`;
 
+                        // Capture original controlling team BEFORE any modifications
+                        const originalControllingTeam = root.buzzer?.controllingTeam;
+
                         if (gameState.revealedAnswers && gameState.revealedAnswers[key]) {
                             return undefined;
                         }
@@ -1321,7 +1324,7 @@
                             newRoundPoints += answerPoints;
                         } else if (gameState.phase === 'steal') {
                             // Steal successful: transfer all round points to stealing team
-                            const controllingTeam = root.buzzer.controllingTeam; // Use original buzzer state
+                            const controllingTeam = originalControllingTeam; // Use captured original state
                             const currentRoundPoints = gameState.roundPoints || 0;
                             
                             // The stealing team gets answer points + all round points
