@@ -1053,7 +1053,7 @@
                     },
                     teams: null,
                     buzzer: this.getInitialBuzzer(),
-                    completedFaceoffs: [],
+                    completedRounds: [],
                     countdown: { active: false, timeLeft: 0 }
                 };
             }
@@ -1079,7 +1079,7 @@
                 return {
                     gameState: this.getInitialGameState(currentQuestion),
                     buzzer: this.getInitialBuzzer(),
-                    completedFaceoffs: [],
+                    completedRounds: [],
                     questionSet: {},
                     teams: null,
                     countdown: { active: false, timeLeft: 0 }
@@ -1112,7 +1112,7 @@
                                 revealedAnswers: revealedAnswers
                             },
                             buzzer: this.getInitialBuzzer(),
-                            completedFaceoffs: [],
+                            completedRounds: [],
                             countdown: { active: false, timeLeft: 0 }
                         };
                     });
@@ -1124,17 +1124,25 @@
 
             async nextQuestion() {
                 try {
+                    // First, get the completed rounds to check if target question is completed
+                    const completedRoundsSnapshot = await this.db.ref('completedRounds').once('value');
+                    const completedRounds = completedRoundsSnapshot.val() || [];
+                    
                     const result = await this.db.ref('gameState').transaction((gameState) => {
                         if (gameState === null) {
                             return this.getInitialGameState(1);
                         }
                         
                         if (!gameState) return undefined;
+                        
+                        const nextQuestionIndex = (gameState.currentQuestion || 0) + 1;
+                        const isRoundCompleted = completedRounds.includes(nextQuestionIndex);
+                        
                         return {
                             ...gameState,
-                            currentQuestion: (gameState.currentQuestion || 0) + 1,
+                            currentQuestion: nextQuestionIndex,
                             strikes: 0,
-                            phase: 'setup'
+                            phase: isRoundCompleted ? 'round_over' : 'setup'
                         };
                     });
                     if (result.committed) {
@@ -1150,17 +1158,25 @@
 
             async previousQuestion() {
                 try {
+                    // First, get the completed rounds to check if target question is completed
+                    const completedRoundsSnapshot = await this.db.ref('completedRounds').once('value');
+                    const completedRounds = completedRoundsSnapshot.val() || [];
+                    
                     const result = await this.db.ref('gameState').transaction((gameState) => {
                         if (gameState === null) {
                             return this.getInitialGameState(0);
                         }
                         
                         if (!gameState) return undefined;
+                        
+                        const prevQuestionIndex = Math.max(0, (gameState.currentQuestion || 0) - 1);
+                        const isRoundCompleted = completedRounds.includes(prevQuestionIndex);
+                        
                         return {
                             ...gameState,
-                            currentQuestion: Math.max(0, (gameState.currentQuestion || 0) - 1),
+                            currentQuestion: prevQuestionIndex,
                             strikes: 0,
-                            phase: 'setup'
+                            phase: isRoundCompleted ? 'round_over' : 'setup'
                         };
                     });
                     if (result.committed) {
@@ -1182,7 +1198,7 @@
                             initialRoot.gameState.phase = 'faceoff';
                             initialRoot.gameState.revealedAnswers[`q0_a${answerIndex}`] = true;
                             initialRoot.buzzer.controllingTeam = teamNumber;
-                            initialRoot.completedFaceoffs = [0];
+                            // Don't mark as completed - still in faceoff phase
                             return initialRoot;
                         }
                         
@@ -1211,7 +1227,7 @@
 
                         let newPhase = gameState.phase;
                         let newBuzzer = root.buzzer || {};
-                        let newCompletedFaceoffs = root.completedFaceoffs || [];
+                        let newCompletedRounds = root.completedRounds || [];
 
                         if (gameState.phase === 'faceoff') {
                             newPhase = 'main_game';
@@ -1221,9 +1237,7 @@
                                 active: false,
                                 firstBuzz: null
                             };
-                            if (!newCompletedFaceoffs.includes(currentQ)) {
-                                newCompletedFaceoffs = [...newCompletedFaceoffs, currentQ];
-                            }
+                            // Don't mark as completed yet - wait for round_over
                         } else if (gameState.phase === 'steal') {
                             // In steal phase, any correct answer ends the round
                             newPhase = 'round_over';
@@ -1248,6 +1262,11 @@
                             }
                         }
 
+                        // Mark round as completed when transitioning to round_over
+                        if (newPhase === 'round_over' && !newCompletedRounds.includes(currentQ)) {
+                            newCompletedRounds = [...newCompletedRounds, currentQ];
+                        }
+
                         return {
                             ...root,
                             gameState: {
@@ -1257,7 +1276,7 @@
                                 phase: newPhase
                             },
                             buzzer: newBuzzer,
-                            completedFaceoffs: newCompletedFaceoffs
+                            completedRounds: newCompletedRounds
                         };
                     });
                     
@@ -1288,6 +1307,8 @@
                         let newPhase = gameState.phase;
                         let newBuzzer = { ...buzzer };
                         let newStrikes_final = newStrikes;
+                        let newCompletedRounds = root.completedRounds || [];
+                        const currentQ = gameState.currentQuestion || 0;
 
                         // Handle faceoff strikes differently - 1 strike reverses control
                         if (gameState.phase === 'faceoff') {
@@ -1309,6 +1330,11 @@
                             newStrikes_final = 0;
                         }
 
+                        // Mark round as completed when transitioning to round_over
+                        if (newPhase === 'round_over' && !newCompletedRounds.includes(currentQ)) {
+                            newCompletedRounds = [...newCompletedRounds, currentQ];
+                        }
+
                         return {
                             ...root,
                             gameState: {
@@ -1316,7 +1342,8 @@
                                 strikes: newStrikes_final,
                                 phase: newPhase
                             },
-                            buzzer: newBuzzer
+                            buzzer: newBuzzer,
+                            completedRounds: newCompletedRounds
                         };
                     });
                     return { success: result.committed, result };
@@ -1340,18 +1367,18 @@
                         if (root === null) {
                             const initialRoot = this.getInitialRootForGame(0);
                             initialRoot.gameState.phase = 'round_over';
-                            initialRoot.completedFaceoffs = [0];
+                            initialRoot.completedRounds = [0];
                             return initialRoot;
                         }
                         
                         if (!root || !root.gameState) return undefined;
                         const currentQ = root.gameState.currentQuestion || 0;
-                        const newCompletedFaceoffs = [...(root.completedFaceoffs || []), currentQ];
+                        const newCompletedRounds = [...(root.completedRounds || []), currentQ];
                         return {
                             ...root,
                             gameState: { ...root.gameState, phase: 'round_over' },
                             buzzer: { active: false, firstBuzz: null, controllingTeam: null },
-                            completedFaceoffs: newCompletedFaceoffs
+                            completedRounds: newCompletedRounds
                         };
                     });
                     return { success: result.committed, result };
@@ -1437,7 +1464,7 @@
                     // Clear other game data
                     await this.db.ref('teams').remove();
                     await this.db.ref('buzzer').set(this.getInitialBuzzer());
-                    await this.db.ref('completedFaceoffs').remove();
+                    await this.db.ref('completedRounds').remove();
                     await this.db.ref('countdown').set({ active: false, timeLeft: 0 });
                     
                     return { success: true };
@@ -1561,7 +1588,7 @@
         let team1Score = 0;
         let team2Score = 0;
         let buzzerState = { active: false, firstBuzz: null, controllingTeam: null };
-        let completedFaceoffs = [];
+        let completedRounds = [];
         let availableQuestionSets = [];
 
         function updateConnectionStatus() {
@@ -1957,12 +1984,10 @@
         
         function shouldShowFaceoffModal() {
             // Auto-trigger conditions:
-            // - Game phase = 'setup'
-            // - Current question not in completedFaceoffs array
-            // - Navigation to new question (not returning to previous)
-            return gamePhase === 'setup' && 
-                   !completedFaceoffs.includes(currentQuestionIndex) && 
-                   currentQuestions.length > 0;
+            // - Game phase = 'setup' (this means it's a new/incomplete question)
+            // - Have questions loaded
+            // The phase logic already ensures we only get to 'setup' for incomplete questions
+            return gamePhase === 'setup' && currentQuestions.length > 0;
         }
 
         function updateBuzzerDisplay() {
@@ -2045,13 +2070,8 @@
                 currentQuestionIndex = newQuestionIndex;
                 updateQuestionDisplay();
                 
-                // Auto-show face-off modal when navigating to new question in setup
-                if (isNewQuestion && shouldShowFaceoffModal()) {
-                    // Small delay to ensure UI updates first
-                    setTimeout(() => {
-                        showFaceoffModal();
-                    }, 100);
-                }
+                // No auto-trigger here - let the phase listener handle it
+                // This avoids race conditions between question and phase updates
             });
 
             // Listen for revealed answers
@@ -2086,6 +2106,7 @@
                 gamePhase = newPhase;
                 updatePhaseDisplay();
                 updateAnswerButtons();
+                updateQuestionDisplay(); // Update navigation buttons when phase changes
                 
                 // Auto-show face-off modal when transitioning to setup phase
                 if (newPhase === 'setup' && shouldShowFaceoffModal()) {
@@ -2133,9 +2154,9 @@
                 updateAnswerButtons();
             });
 
-            // Listen for completed face-offs
-            database.ref('completedFaceoffs').on('value', (snapshot) => {
-                completedFaceoffs = snapshot.exists() ? snapshot.val() : [];
+            // Listen for completed rounds
+            database.ref('completedRounds').on('value', (snapshot) => {
+                completedRounds = snapshot.exists() ? snapshot.val() : [];
                 updateFaceoffControls();
             });
 
