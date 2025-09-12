@@ -578,25 +578,96 @@
             backdrop-filter: blur(10px);
             cursor: pointer;
             transition: all 0.3s ease;
+            overflow: hidden;
         }
         
-        .titlebar-collapsed {
+        .titlebar-main {
             padding: 15px 20px;
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
+            color: white;
+            font-weight: 500;
         }
         
-        .titlebar-expanded {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(30, 60, 114, 0.98);
-            padding: 20px;
-            z-index: 101;
-            overflow-y: auto;
+        .titlebar-left {
+            flex: 1;
+            text-align: left;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .titlebar-center {
+            flex: 1;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        
+        .titlebar-right {
+            flex: 1;
+            text-align: right;
+        }
+        
+        .titlebar-team-info {
+            display: none;
+            padding: 0 20px 15px 20px;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+        
+        .titlebar-team-info.visible {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .team-boxes {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .team-box {
+            flex: 1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+            border: 2px solid;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .team-box.team1 {
+            border-color: var(--team1-color);
+            background: linear-gradient(135deg, var(--team1-color) 0%, rgba(255, 255, 255, 0.1) 100%);
+        }
+        
+        .team-box.team2 {
+            border-color: var(--team2-color);
+            background: linear-gradient(135deg, var(--team2-color) 0%, rgba(255, 255, 255, 0.1) 100%);
+        }
+        
+        .team-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .team-score {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .team-strikes {
+            font-size: 16px;
         }
         
         .connection-status {
@@ -735,53 +806,25 @@
 <body>
     <!-- Floating Titlebar -->
     <div class="floating-titlebar" id="floating-titlebar" onclick="toggleTitlebar()">
-        <div class="titlebar-collapsed">
-            <span class="connection-status" id="connection-status">Connecting...</span>
+        <div class="titlebar-main">
+            <div class="titlebar-left" id="question-set-name">No questions loaded</div>
+            <div class="titlebar-center" id="game-phase">Team Registration</div>
+            <div class="titlebar-right">
+                <span class="connection-status" id="connection-status">Connecting...</span>
+            </div>
         </div>
-        <div class="titlebar-expanded" id="titlebar-expanded" style="display: none;">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #FFD700; margin-bottom: 10px;">Family Feud Admin</h2>
-                <div class="connection-status" id="connection-status-expanded">Connecting...</div>
-            </div>
-            
-            <div style="margin-bottom: 15px;">
-                <div style="color: #FFD700; font-weight: bold; margin-bottom: 5px;">Question Set:</div>
-                <div id="titlebar-question-set">No questions loaded</div>
-            </div>
-            
-            <div style="margin-bottom: 15px;">
-                <div style="color: #FFD700; font-weight: bold; margin-bottom: 5px;">Current Question:</div>
-                <div id="titlebar-current-question">-</div>
-            </div>
-            
-            <div style="margin-bottom: 15px;">
-                <div style="color: #FFD700; font-weight: bold; margin-bottom: 5px;">Game Phase:</div>
-                <div id="titlebar-phase">Setup</div>
-            </div>
-            
-            <div style="margin-bottom: 15px;">
-                <div style="color: #FFD700; font-weight: bold; margin-bottom: 5px;">Teams:</div>
-                <div style="margin-bottom: 5px;">
-                    <span style="color: var(--team1-color);">Team 1:</span>
-                    <span id="titlebar-team1-name">Not registered</span>
-                    <span id="titlebar-team1-score" style="float: right;">0 pts</span>
+        <div class="titlebar-team-info" id="titlebar-team-info">
+            <div class="team-boxes">
+                <div class="team-box team1">
+                    <div class="team-name" id="team1-name">Not registered</div>
+                    <div class="team-score" id="team1-score">0 pts</div>
+                    <div class="team-strikes" id="team1-strikes"></div>
                 </div>
-                <div>
-                    <span style="color: var(--team2-color);">Team 2:</span>
-                    <span id="titlebar-team2-name">Not registered</span>
-                    <span id="titlebar-team2-score" style="float: right;">0 pts</span>
+                <div class="team-box team2">
+                    <div class="team-name" id="team2-name">Not registered</div>
+                    <div class="team-score" id="team2-score">0 pts</div>
+                    <div class="team-strikes" id="team2-strikes"></div>
                 </div>
-            </div>
-            
-            <div style="margin-bottom: 15px;">
-                <div style="color: #FFD700; font-weight: bold; margin-bottom: 5px;">Strikes:</div>
-                <div id="titlebar-strikes">0/3</div>
-            </div>
-            
-            <div style="text-align: center; margin-top: 20px;">
-                <button onclick="toggleTitlebar()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
-                    Close
-                </button>
             </div>
         </div>
     </div>
@@ -1506,54 +1549,76 @@
         }
         
         function toggleTitlebar() {
-            const expanded = document.getElementById('titlebar-expanded');
-            const isVisible = expanded.style.display !== 'none';
-            expanded.style.display = isVisible ? 'none' : 'block';
+            const teamInfo = document.getElementById('titlebar-team-info');
+            const isVisible = teamInfo.classList.contains('visible');
             
-            // Update the expanded titlebar content when opening
-            if (!isVisible) {
+            if (isVisible) {
+                teamInfo.classList.remove('visible');
+            } else {
                 updateTitlebarContent();
+                teamInfo.classList.add('visible');
             }
         }
         
         function updateTitlebarContent() {
-            // Update question set
-            const questionSetEl = document.getElementById('titlebar-question-set');
+            // Update question set name
+            const questionSetEl = document.getElementById('question-set-name');
             if (questionSetEl) {
-                questionSetEl.textContent = availableQuestionSets.length > 0 && currentQuestionSetName 
-                    ? `${currentQuestionSetName} (${currentQuestions.length} questions)`
-                    : 'No questions loaded';
+                questionSetEl.textContent = currentQuestionSetName || 'No questions loaded';
             }
             
-            // Update current question
-            const currentQuestionEl = document.getElementById('titlebar-current-question');
-            if (currentQuestionEl && currentQuestions.length > 0) {
-                const questionNum = currentQuestionIndex + 1;
-                const questionText = currentQuestions[currentQuestionIndex]?.question || 'No question';
-                currentQuestionEl.textContent = `${questionNum}. ${questionText}`;
-            }
-            
-            // Update phase
-            const phaseEl = document.getElementById('titlebar-phase');
+            // Update game phase with team color
+            const phaseEl = document.getElementById('game-phase');
             if (phaseEl) {
-                phaseEl.textContent = gamePhase || 'Registration';
+                let phaseText = '';
+                switch (gamePhase) {
+                    case 'registration': phaseText = 'Team Registration'; break;
+                    case 'setup': phaseText = 'Setup'; break;
+                    case 'faceoff': phaseText = 'Face-off'; break;
+                    case 'countdown': phaseText = 'Countdown'; break;
+                    case 'buzzer_active': phaseText = 'Buzzer Active'; break;
+                    case 'main_game': phaseText = 'Team Play'; break;
+                    case 'steal': phaseText = 'Steal'; break;
+                    case 'round_over': phaseText = 'Round Complete'; break;
+                    default: phaseText = 'Unknown';
+                }
+                phaseEl.textContent = phaseText;
+                
+                // Set color based on controlling team
+                const controllingTeam = buzzerState.controllingTeam;
+                if (controllingTeam === 1) {
+                    phaseEl.style.color = 'var(--team1-color)';
+                } else if (controllingTeam === 2) {
+                    phaseEl.style.color = 'var(--team2-color)';
+                } else {
+                    phaseEl.style.color = 'white';
+                }
             }
             
-            // Update team names and scores
-            const team1NameEl = document.getElementById('titlebar-team1-name');
-            const team2NameEl = document.getElementById('titlebar-team2-name');
-            const team1ScoreEl = document.getElementById('titlebar-team1-score');
-            const team2ScoreEl = document.getElementById('titlebar-team2-score');
+            // Update team info
+            const team1NameEl = document.getElementById('team1-name');
+            const team2NameEl = document.getElementById('team2-name');
+            const team1ScoreEl = document.getElementById('team1-score');
+            const team2ScoreEl = document.getElementById('team2-score');
+            const team1StrikesEl = document.getElementById('team1-strikes');
+            const team2StrikesEl = document.getElementById('team2-strikes');
             
             if (team1NameEl) team1NameEl.textContent = teams.team1?.name || 'Not registered';
             if (team2NameEl) team2NameEl.textContent = teams.team2?.name || 'Not registered';
             if (team1ScoreEl) team1ScoreEl.textContent = `${team1Score || 0} pts`;
             if (team2ScoreEl) team2ScoreEl.textContent = `${team2Score || 0} pts`;
             
-            // Update strikes
-            const strikesEl = document.getElementById('titlebar-strikes');
-            if (strikesEl) {
-                strikesEl.textContent = `${strikes || 0}/3`;
+            // Update strikes based on controlling team
+            const strikesDisplay = '❌'.repeat(strikes || 0);
+            if (buzzerState.controllingTeam === 1) {
+                if (team1StrikesEl) team1StrikesEl.textContent = strikesDisplay;
+                if (team2StrikesEl) team2StrikesEl.textContent = '';
+            } else if (buzzerState.controllingTeam === 2) {
+                if (team1StrikesEl) team1StrikesEl.textContent = '';
+                if (team2StrikesEl) team2StrikesEl.textContent = strikesDisplay;
+            } else {
+                if (team1StrikesEl) team1StrikesEl.textContent = '';
+                if (team2StrikesEl) team2StrikesEl.textContent = '';
             }
         }
 
@@ -1769,6 +1834,8 @@
             if (titlebarTeam2) titlebarTeam2.textContent = team2Name;
             if (titlebarTeam1Score) titlebarTeam1Score.textContent = `${team1Score || 0} pts`;
             if (titlebarTeam2Score) titlebarTeam2Score.textContent = `${team2Score || 0} pts`;
+            
+            updateTitlebarContent(); // Update new floating titlebar
         }
         
         function updateTeamColors(teams) {
@@ -1833,6 +1900,8 @@
             
             if (titlebarPhase) titlebarPhase.textContent = phaseText;
             if (titlebarStrikes) titlebarStrikes.textContent = `${strikes || 0}/3`;
+            
+            updateTitlebarContent(); // Update new floating titlebar
             
             // Note: Face-off controls are now handled by auto-modal system
         }
@@ -2299,6 +2368,17 @@
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', () => {
             initializeGame();
+            updateTitlebarContent(); // Initialize titlebar content
+            
+            // Add click outside handler for titlebar
+            document.addEventListener('click', (event) => {
+                const titlebar = document.getElementById('floating-titlebar');
+                const teamInfo = document.getElementById('titlebar-team-info');
+                
+                if (teamInfo.classList.contains('visible') && !titlebar.contains(event.target)) {
+                    teamInfo.classList.remove('visible');
+                }
+            });
             
             // Add visual feedback to buttons
             const buttons = document.querySelectorAll('button');
