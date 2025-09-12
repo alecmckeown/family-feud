@@ -7,6 +7,13 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
     <style>
+        :root {
+            --team1-color: #2196F3;
+            --team2-color: #FF9800;
+            --team1-secondary: #1976D2;
+            --team2-secondary: #F57C00;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -444,6 +451,7 @@
                 if (!snapshot.exists()) {
                     clearUserTeamData(); // Clear user team if teams are cleared globally
                 }
+                updateTeamColors(teams);  // Apply team colors
                 updateTeamsDisplay();
             });
 
@@ -483,6 +491,24 @@
             } else {
                 document.getElementById('no-questions-state').style.display = 'block';
                 document.getElementById('game-content').style.display = 'none';
+            }
+        }
+
+        function updateTeamColors(teams) {
+            // Apply team colors from database to CSS custom properties
+            const root = document.documentElement;
+            
+            if (teams.team1?.color) {
+                root.style.setProperty('--team1-color', teams.team1.color);
+            }
+            if (teams.team1?.secondaryColor) {
+                root.style.setProperty('--team1-secondary', teams.team1.secondaryColor);
+            }
+            if (teams.team2?.color) {
+                root.style.setProperty('--team2-color', teams.team2.color);
+            }
+            if (teams.team2?.secondaryColor) {
+                root.style.setProperty('--team2-secondary', teams.team2.secondaryColor);
             }
         }
 
@@ -629,11 +655,25 @@
                 const result = await database.ref('teams').transaction((currentTeams) => {
                     const teams = currentTeams || {};
                     
-                    // Find first available slot
+                    // Find first available slot and assign colors
                     if (!teams.team1) {
-                        return { ...teams, team1: { name: teamName } };
+                        return { 
+                            ...teams, 
+                            team1: { 
+                                name: teamName,
+                                color: '#2196F3',
+                                secondaryColor: '#1976D2'
+                            } 
+                        };
                     } else if (!teams.team2) {
-                        return { ...teams, team2: { name: teamName } };
+                        return { 
+                            ...teams, 
+                            team2: { 
+                                name: teamName,
+                                color: '#FF9800',
+                                secondaryColor: '#F57C00'
+                            } 
+                        };
                     } else {
                         return undefined; // Both slots taken, abort
                     }

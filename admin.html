@@ -7,6 +7,15 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
     <style>
+        :root {
+            --team1-color: #2196F3;
+            --team2-color: #FF9800;
+            --team1-secondary: #1976D2;
+            --team2-secondary: #F57C00;
+            --strike-color: #f44336;
+            --disabled-color: #666;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -166,16 +175,37 @@
             cursor: pointer;
             flex: 1;
             max-width: 100px;
+            transition: all 0.2s ease;
+            position: relative;
         }
         
         .nav-btn:disabled {
-            background: #666;
-            opacity: 0.5;
+            background: var(--disabled-color);
+            opacity: 0.7;
             cursor: not-allowed;
         }
         
-        .nav-btn:active {
+        .nav-btn.locked {
+            background: var(--disabled-color);
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        .nav-btn.locked::after {
+            content: " 🔒";
+            font-size: 0.8em;
+        }
+        
+        .nav-btn:active:not(:disabled):not(.locked) {
             transform: scale(0.95);
+        }
+        
+        .nav-explanation {
+            text-align: center;
+            font-size: 0.85em;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 5px;
+            min-height: 1.2em;
         }
         
         .answers-section {
@@ -522,79 +552,6 @@
             opacity: 0.8;
         }
         
-        /* Enhanced answer button styles */
-        .answer-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr 60px;
-            gap: 5px;
-            margin-bottom: 10px;
-            align-items: center;
-        }
-        
-        .team-answer-btn {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px 8px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s ease;
-        }
-        
-        .team-answer-btn:active {
-            transform: scale(0.98);
-        }
-        
-        .team-answer-btn:disabled {
-            background: #666;
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .team-answer-btn.team1 {
-            background: #2196F3;
-        }
-        
-        .team-answer-btn.team2 {
-            background: #FF9800;
-        }
-        
-        .strike-btn {
-            background: #f44336;
-            color: white;
-            border: none;
-            padding: 12px 8px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s ease;
-        }
-        
-        .strike-btn:active {
-            transform: scale(0.98);
-        }
-        
-        .strike-btn:disabled {
-            background: #666;
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .answer-info {
-            grid-column: 1 / -1;
-            background: rgba(255,255,255,0.1);
-            padding: 8px 12px;
-            border-radius: 6px;
-            margin-bottom: 5px;
-            font-size: 14px;
-            text-align: center;
-        }
-        
         .countdown-display {
             background: rgba(255, 193, 7, 0.2);
             border: 1px solid #FFC107;
@@ -609,17 +566,227 @@
             font-weight: bold;
             color: #FFC107;
         }
+        
+        /* New UX Redesign Components */
+        .floating-titlebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(30, 60, 114, 0.95);
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .titlebar-collapsed {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .titlebar-expanded {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(30, 60, 114, 0.98);
+            padding: 20px;
+            z-index: 101;
+            overflow-y: auto;
+        }
+        
+        .connection-status {
+            font-weight: bold;
+            padding: 5px 15px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            font-size: 0.9em;
+        }
+        
+        .connection-status.connected {
+            background: rgba(76, 175, 80, 0.8);
+        }
+        
+        .connection-status.disconnected {
+            background: rgba(244, 67, 54, 0.8);
+        }
+        
+        .answer-button-full {
+            width: 100%;
+            padding: 18px 20px;
+            margin-bottom: 8px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        
+        .answer-button-full:active {
+            transform: scale(0.98);
+        }
+        
+        .answer-button-full.team1-active {
+            background: var(--team1-color);
+            color: white;
+        }
+        
+        .answer-button-full.team2-active {
+            background: var(--team2-color);
+            color: white;
+        }
+        
+        .answer-button-full.disabled {
+            background: var(--disabled-color);
+            color: rgba(255, 255, 255, 0.7);
+            cursor: not-allowed;
+            border: 2px solid transparent;
+        }
+        
+        .answer-button-full.disabled.team1-revealed {
+            border-color: var(--team1-color);
+        }
+        
+        .answer-button-full.disabled.team2-revealed {
+            border-color: var(--team2-color);
+        }
+        
+        .answer-text {
+            text-align: left;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .team-assignment {
+            text-align: right;
+            font-size: 14px;
+            font-weight: normal;
+            opacity: 0.9;
+        }
+        
+        .strike-button-full {
+            width: 100%;
+            padding: 20px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 12px;
+            background: var(--strike-color);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(244, 67, 54, 0.3);
+            transition: all 0.2s ease;
+        }
+        
+        .strike-button-full:disabled {
+            background: var(--disabled-color);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        .strike-button-full:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+        
+        .face-off-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .face-off-modal.visible {
+            display: flex;
+        }
+        
+        .face-off-modal .modal-content {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Adjust main content for floating titlebar */
+        .admin-container {
+            margin-top: 60px;
+        }
     </style>
 </head>
 <body>
-    <div class="connection-status" id="connection-status">Connecting...</div>
+    <!-- Floating Titlebar -->
+    <div class="floating-titlebar" id="floating-titlebar" onclick="toggleTitlebar()">
+        <div class="titlebar-collapsed">
+            <span class="connection-status" id="connection-status">Connecting...</span>
+        </div>
+        <div class="titlebar-expanded" id="titlebar-expanded" style="display: none;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="color: #FFD700; margin-bottom: 10px;">Family Feud Admin</h2>
+                <div class="connection-status" id="connection-status-expanded">Connecting...</div>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <div style="color: #FFD700; font-weight: bold; margin-bottom: 5px;">Question Set:</div>
+                <div id="titlebar-question-set">No questions loaded</div>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <div style="color: #FFD700; font-weight: bold; margin-bottom: 5px;">Current Question:</div>
+                <div id="titlebar-current-question">-</div>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <div style="color: #FFD700; font-weight: bold; margin-bottom: 5px;">Game Phase:</div>
+                <div id="titlebar-phase">Setup</div>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <div style="color: #FFD700; font-weight: bold; margin-bottom: 5px;">Teams:</div>
+                <div style="margin-bottom: 5px;">
+                    <span style="color: var(--team1-color);">Team 1:</span>
+                    <span id="titlebar-team1-name">Not registered</span>
+                    <span id="titlebar-team1-score" style="float: right;">0 pts</span>
+                </div>
+                <div>
+                    <span style="color: var(--team2-color);">Team 2:</span>
+                    <span id="titlebar-team2-name">Not registered</span>
+                    <span id="titlebar-team2-score" style="float: right;">0 pts</span>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <div style="color: #FFD700; font-weight: bold; margin-bottom: 5px;">Strikes:</div>
+                <div id="titlebar-strikes">0/3</div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="toggleTitlebar()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
     
     <div class="admin-container">
-        <div class="header">
-            <h1 class="title">ADMIN CONTROL v8</h1>
-            <div class="subtitle">Family Feud</div>
-        </div>
-        
         <!-- Modal Interface -->
         <div class="modal-overlay" id="modal-overlay">
             <div class="modal-content">
@@ -630,6 +797,25 @@
                 <button class="danger-btn hold-btn" data-action="reset-game">
                     <span class="btn-text">Reset Current Game</span>
                 </button>
+                
+                <!-- Team Management Section in Modal -->
+                <div id="modal-team-management" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px;">
+                    <h4 style="color: #FFD700; margin-bottom: 15px;">Team Management</h4>
+                    <div class="team-info-display">
+                        <div class="team-info" style="margin-bottom: 8px;">
+                            <span class="team-label">Team 1:</span>
+                            <span id="modal-team1-name" class="team-name-display empty">Not registered</span>
+                        </div>
+                        <div class="team-info" style="margin-bottom: 15px;">
+                            <span class="team-label">Team 2:</span>
+                            <span id="modal-team2-name" class="team-name-display empty">Not registered</span>
+                        </div>
+                    </div>
+                    <button class="danger-btn hold-btn" data-action="clear-teams" style="margin-bottom: 15px;">
+                        <span class="btn-text">Clear Teams</span>
+                    </button>
+                </div>
+                
                 <button class="cancel-btn" onclick="hideModal()">Cancel</button>
                 
                 <!-- Question picker (shown when changing questions) -->
@@ -649,6 +835,20 @@
             </div>
         </div>
         
+        <!-- Face-off Auto-Modal -->
+        <div class="face-off-modal" id="faceoff-modal">
+            <div class="modal-content">
+                <h3>Start Face-off Round</h3>
+                <p style="color: #FFD700; margin-bottom: 20px;">Ready to begin the face-off for this question?</p>
+                <button class="load-btn" onclick="startFaceoff(); hideFaceoffModal();" style="margin-bottom: 10px;">
+                    Start Face-off
+                </button>
+                <button class="change-btn" onclick="skipFaceoff(); hideFaceoffModal();">
+                    Skip Face-off
+                </button>
+            </div>
+        </div>
+        
         <!-- Game Controls -->
         <div class="game-controls" id="game-controls">
             <div class="status-card" id="no-questions-message">
@@ -663,42 +863,10 @@
                 <div class="question-text" id="question-text">Loading...</div>
             </div>
             
-            <!-- Team Management Section -->
-            <div class="status-card" id="team-management" style="display: none;">
-                <div class="section-title">Team Management</div>
-                <div class="team-info-display">
-                    <div class="team-info">
-                        <span class="team-label">Team 1:</span>
-                        <span id="admin-team1-name" class="team-name-display empty">Not registered</span>
-                    </div>
-                    <div class="team-info">
-                        <span class="team-label">Team 2:</span>
-                        <span id="admin-team2-name" class="team-name-display empty">Not registered</span>
-                    </div>
-                </div>
-                <button class="danger-btn" id="clear-teams-btn" style="margin-top: 15px; padding: 10px 20px; font-size: 14px;">
-                    Clear Teams
-                </button>
-            </div>
-            
-            <!-- Game Phase Section -->
-            <div class="status-card" id="phase-management" style="display: none;">
-                <div class="section-title">Game Phase</div>
-                <div class="phase-display">
-                    <div class="current-phase">Current: <span id="current-phase-text">Setup</span></div>
-                    <div class="strikes-display" id="strikes-display" style="margin-top: 10px;">
-                        Strikes: <span id="strikes-count">0</span>/3
-                    </div>
-                </div>
-                <div class="face-off-controls" id="face-off-controls" style="margin-top: 15px;">
-                    <button class="load-btn" id="start-faceoff-btn">
-                        Start Face-off
-                    </button>
-                    <button class="change-btn" id="skip-faceoff-btn" style="margin-top: 10px;">
-                        Skip Face-off
-                    </button>
-                </div>
-                <div class="buzz-results" id="buzz-results" style="display: none; margin-top: 15px;">
+            <!-- Buzz Results Section -->
+            <div class="status-card" id="buzz-results-card" style="display: none;">
+                <div class="section-title">Face-off Results</div>
+                <div class="buzz-results" id="buzz-results" style="margin-top: 10px;">
                     <div class="buzz-winner">Winner: <span id="buzz-winner-text"></span></div>
                     <div class="buzz-time">Time: <span id="buzz-time-text"></span>ms</div>
                 </div>
@@ -715,6 +883,7 @@
                 <button class="nav-btn" id="prev-btn">← Previous</button>
                 <button class="nav-btn" id="next-btn">Next →</button>
             </div>
+            <div class="nav-explanation" id="nav-explanation"></div>
             
             <div class="control-section">
                 <button class="control-btn" onclick="showModal()">⚠️ GAME CONTROL</button>
@@ -772,7 +941,7 @@
                     team2Score: 0,
                     revealedAnswers: {},
                     strikes: 0,
-                    phase: 'setup'
+                    phase: 'registration'
                 };
             }
 
@@ -822,7 +991,7 @@
                     team2Score: 0,
                     revealedAnswers: revealedAnswers,
                     strikes: 0,
-                    phase: 'setup'
+                    phase: 'registration'
                 };
             }
 
@@ -1310,35 +1479,92 @@
         let currentQuestionIndex = 0;
         let revealedAnswers = {};
         let teams = { team1: null, team2: null };
-        let gamePhase = 'setup';
+        let gamePhase = 'registration';
         let strikes = 0;
+        let team1Score = 0;
+        let team2Score = 0;
         let buzzerState = { active: false, firstBuzz: null, controllingTeam: null };
         let completedFaceoffs = [];
         let availableQuestionSets = [];
 
         function updateConnectionStatus() {
             const statusEl = document.getElementById('connection-status');
-            if (database && isConnected) {
-                statusEl.textContent = 'Connected';
-                statusEl.className = 'connection-status connected';
-            } else {
-                statusEl.textContent = 'Offline -- Refresh the page';
-                statusEl.className = 'connection-status disconnected';
+            const statusElExpanded = document.getElementById('connection-status-expanded');
+            const isConnectedState = database && isConnected;
+            
+            const statusText = isConnectedState ? 'Connected' : 'Offline -- Refresh the page';
+            const statusClass = isConnectedState ? 'connection-status connected' : 'connection-status disconnected';
+            
+            if (statusEl) {
+                statusEl.textContent = statusText;
+                statusEl.className = statusClass;
+            }
+            if (statusElExpanded) {
+                statusElExpanded.textContent = statusText;
+                statusElExpanded.className = statusClass;
+            }
+        }
+        
+        function toggleTitlebar() {
+            const expanded = document.getElementById('titlebar-expanded');
+            const isVisible = expanded.style.display !== 'none';
+            expanded.style.display = isVisible ? 'none' : 'block';
+            
+            // Update the expanded titlebar content when opening
+            if (!isVisible) {
+                updateTitlebarContent();
+            }
+        }
+        
+        function updateTitlebarContent() {
+            // Update question set
+            const questionSetEl = document.getElementById('titlebar-question-set');
+            if (questionSetEl) {
+                questionSetEl.textContent = availableQuestionSets.length > 0 && currentQuestionSetName 
+                    ? `${currentQuestionSetName} (${currentQuestions.length} questions)`
+                    : 'No questions loaded';
+            }
+            
+            // Update current question
+            const currentQuestionEl = document.getElementById('titlebar-current-question');
+            if (currentQuestionEl && currentQuestions.length > 0) {
+                const questionNum = currentQuestionIndex + 1;
+                const questionText = currentQuestions[currentQuestionIndex]?.question || 'No question';
+                currentQuestionEl.textContent = `${questionNum}. ${questionText}`;
+            }
+            
+            // Update phase
+            const phaseEl = document.getElementById('titlebar-phase');
+            if (phaseEl) {
+                phaseEl.textContent = gamePhase || 'Registration';
+            }
+            
+            // Update team names and scores
+            const team1NameEl = document.getElementById('titlebar-team1-name');
+            const team2NameEl = document.getElementById('titlebar-team2-name');
+            const team1ScoreEl = document.getElementById('titlebar-team1-score');
+            const team2ScoreEl = document.getElementById('titlebar-team2-score');
+            
+            if (team1NameEl) team1NameEl.textContent = teams.team1?.name || 'Not registered';
+            if (team2NameEl) team2NameEl.textContent = teams.team2?.name || 'Not registered';
+            if (team1ScoreEl) team1ScoreEl.textContent = `${team1Score || 0} pts`;
+            if (team2ScoreEl) team2ScoreEl.textContent = `${team2Score || 0} pts`;
+            
+            // Update strikes
+            const strikesEl = document.getElementById('titlebar-strikes');
+            if (strikesEl) {
+                strikesEl.textContent = `${strikes || 0}/3`;
             }
         }
 
         function showGameControls() {
             document.getElementById('no-questions-message').style.display = 'none';
             document.getElementById('question-status').style.display = 'block';
-            document.getElementById('team-management').style.display = 'block';
-            document.getElementById('phase-management').style.display = 'block';
         }
 
         function hideGameControls() {
             document.getElementById('no-questions-message').style.display = 'block';
             document.getElementById('question-status').style.display = 'none';
-            document.getElementById('team-management').style.display = 'none';
-            document.getElementById('phase-management').style.display = 'none';
         }
 
         function updateQuestionDisplay() {
@@ -1359,9 +1585,44 @@
             // Only allow navigation in round_over phase (when round is complete)
             const canNavigate = gamePhase === 'round_over';
             
-            // Update navigation buttons
-            document.getElementById('prev-btn').disabled = !canNavigate || currentQuestionIndex === 0;
-            document.getElementById('next-btn').disabled = !canNavigate || currentQuestionIndex === currentQuestions.length - 1;
+            // Update navigation buttons with better feedback
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const explanation = document.getElementById('nav-explanation');
+            
+            const atFirstQuestion = currentQuestionIndex === 0;
+            const atLastQuestion = currentQuestionIndex === currentQuestions.length - 1;
+            
+            // Handle previous button
+            if (!canNavigate) {
+                prevBtn.disabled = true;
+                prevBtn.classList.add('locked');
+            } else {
+                prevBtn.disabled = atFirstQuestion;
+                prevBtn.classList.remove('locked');
+            }
+            
+            // Handle next button
+            if (!canNavigate) {
+                nextBtn.disabled = true;
+                nextBtn.classList.add('locked');
+            } else {
+                nextBtn.disabled = atLastQuestion;
+                nextBtn.classList.remove('locked');
+            }
+            
+            // Set explanation text
+            if (!canNavigate) {
+                explanation.textContent = "Complete current round to navigate";
+            } else if (atFirstQuestion && atLastQuestion) {
+                explanation.textContent = "Only one question in set";
+            } else if (atFirstQuestion) {
+                explanation.textContent = "At first question";
+            } else if (atLastQuestion) {
+                explanation.textContent = "At last question";
+            } else {
+                explanation.textContent = "Navigation unlocked";
+            }
             
             updateAnswerButtons();
         }
@@ -1373,71 +1634,179 @@
             if (!currentQuestions[currentQuestionIndex]) return;
             
             const currentQ = currentQuestions[currentQuestionIndex];
+            const activeTeam = getActiveTeamForAnswer();
+            
+            // Create full-width answer buttons
             currentQ.answers.forEach((answer, index) => {
                 const key = `q${currentQuestionIndex}_a${index}`;
                 const isRevealed = revealedAnswers[key] || false;
                 
-                const answerRow = document.createElement('div');
-                answerRow.className = 'answer-row';
+                const answerButton = document.createElement('button');
+                answerButton.className = 'answer-button-full';
                 
-                const answerInfo = document.createElement('div');
-                answerInfo.className = 'answer-info';
-                answerInfo.textContent = `${answer.rank}. ${answer.text} (${answer.points} pts)`;
-                
-                const team1Btn = document.createElement('button');
-                team1Btn.className = 'team-answer-btn team1';
-                team1Btn.textContent = teams.team1?.name || 'Team 1';
-                team1Btn.disabled = isRevealed || !isTeamButtonEnabled(1);
-                team1Btn.onclick = () => {
-                    if (gamePhase === 'round_over') {
-                        revealAnswerOnly(index);
-                    } else {
-                        awardAnswer(1, index);
+                // Determine button state and styling
+                if (isRevealed) {
+                    answerButton.className += ' disabled';
+                    if (activeTeam === 1) {
+                        answerButton.className += ' team1-revealed';
+                    } else if (activeTeam === 2) {
+                        answerButton.className += ' team2-revealed';
                     }
-                };
+                    answerButton.disabled = true;
+                } else if (gamePhase === 'round_over') {
+                    // In round_over, buttons are enabled for reveal-only (no scoring)
+                    answerButton.className += ' neutral-active';
+                    answerButton.disabled = false;
+                } else if (activeTeam === 1) {
+                    answerButton.className += ' team1-active';
+                    answerButton.disabled = !isTeamButtonEnabled(1);
+                } else if (activeTeam === 2) {
+                    answerButton.className += ' team2-active';
+                    answerButton.disabled = !isTeamButtonEnabled(2);
+                } else {
+                    // No active team (setup phase, etc.)
+                    answerButton.className += ' disabled';
+                    answerButton.disabled = true;
+                }
                 
-                const team2Btn = document.createElement('button');
-                team2Btn.className = 'team-answer-btn team2';
-                team2Btn.textContent = teams.team2?.name || 'Team 2';
-                team2Btn.disabled = isRevealed || !isTeamButtonEnabled(2);
-                team2Btn.onclick = () => {
-                    if (gamePhase === 'round_over') {
-                        revealAnswerOnly(index);
-                    } else {
-                        awardAnswer(2, index);
-                    }
-                };
+                // Create button content
+                const answerText = document.createElement('span');
+                answerText.className = 'answer-text';
+                answerText.textContent = `${answer.rank}. ${answer.text} (${answer.points} pts)`;
                 
-                const strikeBtn = document.createElement('button');
-                strikeBtn.className = 'strike-btn';
-                strikeBtn.textContent = 'X';
-                strikeBtn.disabled = !isStrikeButtonEnabled();
-                strikeBtn.onclick = () => addStrike();
+                const teamAssignment = document.createElement('span');
+                teamAssignment.className = 'team-assignment';
                 
-                answerRow.appendChild(answerInfo);
-                answerRow.appendChild(team1Btn);
-                answerRow.appendChild(team2Btn);
-                answerRow.appendChild(strikeBtn);
-                answerButtons.appendChild(answerRow);
+                if (activeTeam === 1) {
+                    teamAssignment.textContent = teams.team1?.name || 'Team 1';
+                } else if (activeTeam === 2) {
+                    teamAssignment.textContent = teams.team2?.name || 'Team 2';
+                } else if (gamePhase === 'round_over') {
+                    teamAssignment.textContent = 'Reveal';
+                } else {
+                    teamAssignment.textContent = '';
+                }
+                
+                answerButton.appendChild(answerText);
+                answerButton.appendChild(teamAssignment);
+                
+                // Set click handler
+                if (!isRevealed) {
+                    answerButton.onclick = () => {
+                        if (gamePhase === 'round_over') {
+                            revealAnswerOnly(index);
+                        } else if (activeTeam === 1 && isTeamButtonEnabled(1)) {
+                            awardAnswer(1, index);
+                        } else if (activeTeam === 2 && isTeamButtonEnabled(2)) {
+                            awardAnswer(2, index);
+                        }
+                    };
+                }
+                
+                answerButtons.appendChild(answerButton);
             });
+            
+            // Add single strike button at the end
+            const strikeButton = document.createElement('button');
+            strikeButton.className = 'strike-button-full hold-btn';
+            strikeButton.innerHTML = '<span class="btn-text">STRIKE</span>';
+            strikeButton.disabled = !isStrikeButtonEnabled();
+            strikeButton.setAttribute('data-action', 'strike');
+            
+            answerButtons.appendChild(strikeButton);
+            
+            // Initialize hold button functionality for strike button
+            initHoldButton(strikeButton);
         }
 
         function updateTeamsDisplay() {
             const team1Name = teams.team1?.name || 'Not registered';
             const team2Name = teams.team2?.name || 'Not registered';
             
-            document.getElementById('admin-team1-name').textContent = team1Name;
-            document.getElementById('admin-team2-name').textContent = team2Name;
+            // Update main team display (if elements exist)
+            const team1El = document.getElementById('admin-team1-name');
+            const team2El = document.getElementById('admin-team2-name');
             
-            document.getElementById('admin-team1-name').className = 
-                teams.team1 ? 'team-name-display' : 'team-name-display empty';
-            document.getElementById('admin-team2-name').className = 
-                teams.team2 ? 'team-name-display' : 'team-name-display empty';
+            if (team1El) {
+                team1El.textContent = team1Name;
+                team1El.className = teams.team1 ? 'team-name-display' : 'team-name-display empty';
+            }
+            if (team2El) {
+                team2El.textContent = team2Name;
+                team2El.className = teams.team2 ? 'team-name-display' : 'team-name-display empty';
+            }
+            
+            // Update modal team display
+            const modalTeam1El = document.getElementById('modal-team1-name');
+            const modalTeam2El = document.getElementById('modal-team2-name');
+            
+            if (modalTeam1El) {
+                modalTeam1El.textContent = team1Name;
+                modalTeam1El.className = teams.team1 ? 'team-name-display' : 'team-name-display empty';
+            }
+            if (modalTeam2El) {
+                modalTeam2El.textContent = team2Name;
+                modalTeam2El.className = teams.team2 ? 'team-name-display' : 'team-name-display empty';
+            }
+            
+            // Update titlebar team display
+            const titlebarTeam1 = document.getElementById('titlebar-team1-name');
+            const titlebarTeam2 = document.getElementById('titlebar-team2-name');
+            const titlebarTeam1Score = document.getElementById('titlebar-team1-score');
+            const titlebarTeam2Score = document.getElementById('titlebar-team2-score');
+            
+            if (titlebarTeam1) titlebarTeam1.textContent = team1Name;
+            if (titlebarTeam2) titlebarTeam2.textContent = team2Name;
+            if (titlebarTeam1Score) titlebarTeam1Score.textContent = `${team1Score || 0} pts`;
+            if (titlebarTeam2Score) titlebarTeam2Score.textContent = `${team2Score || 0} pts`;
+        }
+        
+        function updateTeamColors(teams) {
+            // Apply team colors from database to CSS custom properties
+            const root = document.documentElement;
+            
+            if (teams.team1?.color) {
+                root.style.setProperty('--team1-color', teams.team1.color);
+            }
+            if (teams.team1?.secondaryColor) {
+                root.style.setProperty('--team1-secondary', teams.team1.secondaryColor);
+            }
+            if (teams.team2?.color) {
+                root.style.setProperty('--team2-color', teams.team2.color);
+            }
+            if (teams.team2?.secondaryColor) {
+                root.style.setProperty('--team2-secondary', teams.team2.secondaryColor);
+            }
+        }
+        
+        function assignDefaultTeamColors(teams) {
+            // Assign default colors to teams if they don't have colors
+            const needsColorUpdate = 
+                (teams.team1 && !teams.team1.color) || 
+                (teams.team2 && !teams.team2.color);
+                
+            if (needsColorUpdate && database) {
+                const updates = {};
+                
+                if (teams.team1 && !teams.team1.color) {
+                    updates['teams/team1/color'] = '#2196F3';
+                    updates['teams/team1/secondaryColor'] = '#1976D2';
+                }
+                if (teams.team2 && !teams.team2.color) {
+                    updates['teams/team2/color'] = '#FF9800';
+                    updates['teams/team2/secondaryColor'] = '#F57C00';
+                }
+                
+                database.ref().update(updates).catch(error => {
+                    console.error('Failed to assign team colors:', error);
+                });
+            }
         }
 
         function updatePhaseDisplay() {
             let phaseText = '';
             switch (gamePhase) {
+                case 'registration': phaseText = 'Team Registration'; break;
                 case 'setup': phaseText = 'Setup'; break;
                 case 'faceoff': phaseText = 'Face-off'; break;
                 case 'countdown': phaseText = 'Countdown'; break;
@@ -1448,27 +1817,43 @@
                 default: phaseText = 'Unknown';
             }
             
-            document.getElementById('current-phase-text').textContent = phaseText;
-            document.getElementById('strikes-count').textContent = strikes || 0;
+            // Update titlebar phase and strikes display
+            const titlebarPhase = document.getElementById('titlebar-phase');
+            const titlebarStrikes = document.getElementById('titlebar-strikes');
             
-            updateFaceoffControls();
+            if (titlebarPhase) titlebarPhase.textContent = phaseText;
+            if (titlebarStrikes) titlebarStrikes.textContent = `${strikes || 0}/3`;
+            
+            // Note: Face-off controls are now handled by auto-modal system
         }
 
         function updateFaceoffControls() {
-            const hasFaceoffCompleted = completedFaceoffs.includes(currentQuestionIndex);
-            const startBtn = document.getElementById('start-faceoff-btn');
-            const skipBtn = document.getElementById('skip-faceoff-btn');
-            
-            if (hasFaceoffCompleted) {
-                startBtn.style.display = 'none';
-                skipBtn.style.display = 'none';
-            } else {
-                startBtn.style.display = 'block';
-                skipBtn.style.display = 'block';
-            }
+            // Face-off controls are now handled by auto-modal system
+            // This function is kept for compatibility but logic moved to navigation
+        }
+        
+        function showFaceoffModal() {
+            document.getElementById('faceoff-modal').classList.add('visible');
+        }
+        
+        function hideFaceoffModal() {
+            document.getElementById('faceoff-modal').classList.remove('visible');
+        }
+        
+        function shouldShowFaceoffModal() {
+            // Auto-trigger conditions:
+            // - Game phase = 'setup'
+            // - Current question not in completedFaceoffs array
+            // - Navigation to new question (not returning to previous)
+            return gamePhase === 'setup' && 
+                   !completedFaceoffs.includes(currentQuestionIndex) && 
+                   currentQuestions.length > 0;
         }
 
         function updateBuzzerDisplay() {
+            const buzzResultsCard = document.getElementById('buzz-results-card');
+            const buzzResults = document.getElementById('buzz-results');
+            
             if (buzzerState.firstBuzz) {
                 const winnerTeam = buzzerState.firstBuzz.team;
                 const winnerName = winnerTeam === 1 ? 
@@ -1477,9 +1862,12 @@
                 
                 document.getElementById('buzz-winner-text').textContent = winnerName;
                 document.getElementById('buzz-time-text').textContent = buzzerState.firstBuzz.timestamp;
-                document.getElementById('buzz-results').style.display = 'block';
+                
+                if (buzzResults) buzzResults.style.display = 'block';
+                if (buzzResultsCard) buzzResultsCard.style.display = 'block';
             } else {
-                document.getElementById('buzz-results').style.display = 'none';
+                if (buzzResults) buzzResults.style.display = 'none';
+                if (buzzResultsCard) buzzResultsCard.style.display = 'none';
             }
         }
 
@@ -1490,6 +1878,19 @@
                 case 'steal': return teamNumber !== buzzerState.controllingTeam;
                 case 'round_over': return true; // Allow revealing any answer for viewing
                 default: return false;
+            }
+        }
+        
+        function getActiveTeamForAnswer() {
+            // Returns which team would receive points for answering correctly
+            switch (gamePhase) {
+                case 'faceoff': return buzzerState.controllingTeam;
+                case 'main_game': return buzzerState.controllingTeam;
+                case 'steal': 
+                    // In steal phase, the non-controlling team gets points
+                    return buzzerState.controllingTeam === 1 ? 2 : 1;
+                case 'round_over': return null; // No points awarded, just revealing
+                default: return null;
             }
         }
 
@@ -1524,8 +1925,18 @@
 
             // Listen for current question index
             database.ref('gameState/currentQuestion').on('value', (snapshot) => {
-                currentQuestionIndex = snapshot.val() || 0;
+                const newQuestionIndex = snapshot.val() || 0;
+                const isNewQuestion = newQuestionIndex !== currentQuestionIndex;
+                currentQuestionIndex = newQuestionIndex;
                 updateQuestionDisplay();
+                
+                // Auto-show face-off modal when navigating to new question in setup
+                if (isNewQuestion && shouldShowFaceoffModal()) {
+                    // Small delay to ensure UI updates first
+                    setTimeout(() => {
+                        showFaceoffModal();
+                    }, 100);
+                }
             });
 
             // Listen for revealed answers
@@ -1535,24 +1946,55 @@
             });
 
             // Listen for teams
-            database.ref('teams').on('value', (snapshot) => {
+            database.ref('teams').on('value', async (snapshot) => {
                 teams = snapshot.exists() ? snapshot.val() : { team1: null, team2: null };
+                updateTeamColors(teams);  // Apply colors from database
+                assignDefaultTeamColors(teams);  // Assign defaults if needed
                 updateTeamsDisplay();
                 updateAnswerButtons();
+                
+                // Auto-transition from registration to setup when both teams are present
+                if (teams.team1 && teams.team2) {
+                    // Check current phase from database to avoid race conditions
+                    const phaseSnapshot = await database.ref('gameState/phase').once('value');
+                    const currentPhase = phaseSnapshot.val() || 'registration';
+                    
+                    if (currentPhase === 'registration') {
+                        database.ref('gameState/phase').set('setup');
+                    }
+                }
             });
 
             // Listen for game phase
             database.ref('gameState/phase').on('value', (snapshot) => {
-                const newPhase = snapshot.val() || 'setup';
+                const newPhase = snapshot.val() || 'registration';
                 gamePhase = newPhase;
                 updatePhaseDisplay();
                 updateAnswerButtons();
+                
+                // Auto-show face-off modal when transitioning to setup phase
+                if (newPhase === 'setup' && shouldShowFaceoffModal()) {
+                    setTimeout(() => {
+                        showFaceoffModal();
+                    }, 100);
+                }
             });
 
             // Listen for strikes
             database.ref('gameState/strikes').on('value', (snapshot) => {
                 strikes = snapshot.val() || 0;
                 updatePhaseDisplay();
+            });
+
+            // Listen for team scores
+            database.ref('gameState/team1Score').on('value', (snapshot) => {
+                team1Score = snapshot.val() || 0;
+                updateTeamsDisplay();
+            });
+
+            database.ref('gameState/team2Score').on('value', (snapshot) => {
+                team2Score = snapshot.val() || 0;
+                updateTeamsDisplay();
             });
 
             // Listen for buzzer state
@@ -1585,9 +2027,6 @@
             // Setup button event listeners
             document.getElementById('prev-btn').onclick = () => previousQuestion();
             document.getElementById('next-btn').onclick = () => nextQuestion();
-            document.getElementById('start-faceoff-btn').onclick = () => startFaceoff();
-            document.getElementById('skip-faceoff-btn').onclick = () => skipFaceoff();
-            document.getElementById('clear-teams-btn').onclick = () => clearTeams();
             document.getElementById('load-questions-btn').onclick = () => loadQuestionSet();
         }
 
@@ -1816,6 +2255,13 @@
                 case 'reset-game':
                     resetGame();
                     hideModal();
+                    break;
+                case 'clear-teams':
+                    clearTeams();
+                    hideModal();
+                    break;
+                case 'strike':
+                    addStrike();
                     break;
             }
         }

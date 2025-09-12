@@ -3,6 +3,9 @@
 ## States and Transitions
 
 ```
+registration
+  └─→ setup (automatic once two teams registered)
+
 setup
   ├─→ countdown (via "Start Face-off")
   ├─→ round_over (via "Skip Face-off") 
@@ -13,30 +16,37 @@ countdown (3 seconds)
 
 buzzer_active
   ├─→ faceoff (when team buzzes in)
-  └─→ setup (via manual reset)
+  └─→ registration (via manual reset)
 
 faceoff
   ├─→ main_game (when team answers correctly)
   ├─→ faceoff (strike reverses control)
-  └─→ setup (via manual reset)
+  └─→ registration (via manual reset)
 
 main_game  
   ├─→ main_game (correct answers, strikes 0-2)
   ├─→ steal (at 3 strikes)
   ├─→ round_over (when all answers revealed)
-  └─→ setup (via manual reset)
+  └─→ registration (via manual reset)
 
 steal
   ├─→ round_over (correct answer or strike)
-  └─→ setup (via manual reset)
+  └─→ registration (via manual reset)
 
 round_over
   ├─→ setup (via "Next Question")
   ├─→ setup (via "Previous Question") 
-  └─→ setup (via manual reset)
+  └─→ registration (via manual reset)
 ```
 
 ## State Behaviors
+
+### registration
+- **Navigation**: Enabled (allows browsing questions while waiting for teams)
+- **Answer Buttons**: Disabled
+- **Face-off Controls**: Hidden
+- **Display**: Shows team registration status, question preview
+- **Auto-transitions**: setup when both teams registered
 
 ### setup
 - **Navigation**: Disabled

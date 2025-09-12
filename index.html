@@ -7,6 +7,13 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
     <style>
+        :root {
+            --team1-color: #2196F3;
+            --team2-color: #FF9800;
+            --team1-secondary: #1976D2;
+            --team2-secondary: #F57C00;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -365,6 +372,24 @@
             document.getElementById('game-board').classList.remove('visible');
         }
 
+        function updateTeamColors(teams) {
+            // Apply team colors from database to CSS custom properties
+            const root = document.documentElement;
+            
+            if (teams.team1?.color) {
+                root.style.setProperty('--team1-color', teams.team1.color);
+            }
+            if (teams.team1?.secondaryColor) {
+                root.style.setProperty('--team1-secondary', teams.team1.secondaryColor);
+            }
+            if (teams.team2?.color) {
+                root.style.setProperty('--team2-color', teams.team2.color);
+            }
+            if (teams.team2?.secondaryColor) {
+                root.style.setProperty('--team2-secondary', teams.team2.secondaryColor);
+            }
+        }
+
         function rebuildAnswersBoard() {
             const answersBoard = document.getElementById('answers-board');
             answersBoard.innerHTML = '';
@@ -431,6 +456,12 @@
             
             database.ref('teams/team2/name').on('value', (snapshot) => {
                 document.getElementById('team2-display-name').textContent = snapshot.val() || 'TEAM 2';
+            });
+            
+            // Listen for complete teams data to handle colors
+            database.ref('teams').on('value', (snapshot) => {
+                const teams = snapshot.exists() ? snapshot.val() : { team1: null, team2: null };
+                updateTeamColors(teams);
             });
 
             // Scores
