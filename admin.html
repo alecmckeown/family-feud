@@ -1110,16 +1110,17 @@
                     // Calculate and assign points to answers
                     const enhancedQuestionSet = {
                         ...questionSetData,
-                        questions: questionSetData.questions.map(question => ({
-                            ...question,
-                            answers: question.answers.map((answer, index) => {
-                                const calculatedPoints = this.assignPointsExponentialDecay(question.answers.length);
-                                return {
+                        questions: questionSetData.questions.map(question => {
+                            // Calculate points once per question
+                            const calculatedPoints = this.assignPointsExponentialDecay(question.answers.length);
+                            return {
+                                ...question,
+                                answers: question.answers.map((answer, index) => ({
                                     ...answer,
                                     points: calculatedPoints[index]
-                                };
-                            })
-                        }))
+                                }))
+                            };
+                        })
                     };
                     
                     const result = await this.db.ref().transaction((root) => {
@@ -1362,7 +1363,7 @@
                             gameState: {
                                 ...gameState,
                                 revealedAnswers: newRevealedAnswers,
-                                strikes: 0,
+                                strikes: newPhase === 'round_over' ? 0 : gameState.strikes,
                                 phase: newPhase,
                                 team1Score: newTeam1Score,
                                 team2Score: newTeam2Score,
@@ -2398,12 +2399,13 @@
                     currentQuestion = { question: line.substring(9).trim(), answers: [] };
                 } else if (line.match(/^\d+\./)) {
                     if (currentQuestion) {
-                        const match = line.match(/^(\d+)\.\s*(.+?)\s*\((\d+)\)$/);
+                        // Parse format: "1. Answer text"
+                        const match = line.match(/^(\d+)\.\s*(.+)$/);
                         if (match) {
                             currentQuestion.answers.push({
                                 rank: parseInt(match[1]),
                                 text: match[2].trim(),
-                                points: parseInt(match[3])
+                                points: 0 // Will be calculated dynamically
                             });
                         }
                     }
