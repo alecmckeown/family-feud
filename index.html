@@ -346,6 +346,7 @@
         let currentQuestions = [];
         let currentQuestionIndex = 0;
         let revealedAnswers = {};
+        let currentPhase = 'setup';
         let countdownInterval = null;
 
         function updateConnectionStatus() {
@@ -440,6 +441,7 @@
                 currentQuestionIndex = snapshot.val() || 0;
                 const questionText = currentQuestions[currentQuestionIndex]?.question || 'Loading...';
                 document.getElementById('current-question').textContent = questionText;
+                updateQuestionVisibility(currentPhase); // Apply visibility rules
                 rebuildAnswersBoard(); // Rebuild when question changes
             });
 
@@ -476,7 +478,9 @@
             // Game phase display
             database.ref('gameState/phase').on('value', (snapshot) => {
                 const phase = snapshot.val() || 'setup';
+                currentPhase = phase;
                 updatePhaseDisplay(phase);
+                updateQuestionVisibility(phase);
             });
 
             // Buzzer results
@@ -546,6 +550,24 @@
                 document.getElementById('phase-indicator').style.display = 'block';
             } else {
                 document.getElementById('phase-indicator').style.display = 'none';
+            }
+        }
+
+        function updateQuestionVisibility(phase) {
+            const questionElement = document.getElementById('current-question');
+            
+            // Hide question during registration, setup and countdown phases
+            // Show question during buzzer_active, faceoff, main_game, steal, and round_over
+            const shouldShowQuestion = phase === 'buzzer_active' || 
+                                     phase === 'faceoff' || 
+                                     phase === 'main_game' || 
+                                     phase === 'steal' || 
+                                     phase === 'round_over';
+            
+            if (shouldShowQuestion) {
+                questionElement.style.display = 'block';
+            } else {
+                questionElement.style.display = 'none';
             }
         }
 
