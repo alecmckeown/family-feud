@@ -737,6 +737,7 @@
             align-items: center;
             transition: all 0.2s ease;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            position: relative;
         }
         
         .answer-button-full:active {
@@ -766,6 +767,22 @@
         
         .answer-button-full.disabled.team2-revealed {
             border-color: var(--team2-color);
+        }
+
+        .point-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 1;
+            min-width: 24px;
+            text-align: center;
         }
         
         .answer-text {
@@ -1016,6 +1033,7 @@
                     currentQuestion: currentQuestion,
                     team1Score: 0,
                     team2Score: 0,
+                    roundPoints: 0,
                     revealedAnswers: {},
                     strikes: 0,
                     phase: 'registration'
@@ -1066,6 +1084,7 @@
                     currentQuestion: currentQuestion,
                     team1Score: 0,
                     team2Score: 0,
+                    roundPoints: 0,
                     revealedAnswers: revealedAnswers,
                     strikes: 0,
                     phase: 'registration'
@@ -1088,16 +1107,31 @@
 
             async loadQuestionSet(questionSetData) {
                 try {
+                    // Calculate and assign points to answers
+                    const enhancedQuestionSet = {
+                        ...questionSetData,
+                        questions: questionSetData.questions.map(question => ({
+                            ...question,
+                            answers: question.answers.map((answer, index) => {
+                                const calculatedPoints = this.assignPointsExponentialDecay(question.answers.length);
+                                return {
+                                    ...answer,
+                                    points: calculatedPoints[index]
+                                };
+                            })
+                        }))
+                    };
+                    
                     const result = await this.db.ref().transaction((root) => {
                         if (root === null) {
-                            return this.getInitialRootWithQuestions(questionSetData);
+                            return this.getInitialRootWithQuestions(enhancedQuestionSet);
                         }
                         
                         if (!root) return undefined;
                         
                         // Update existing root with new question set
                         const revealedAnswers = {};
-                        questionSetData.questions.forEach((q, qIndex) => {
+                        enhancedQuestionSet.questions.forEach((q, qIndex) => {
                             q.answers.forEach((a, aIndex) => {
                                 const key = `q${qIndex}_a${aIndex}`;
                                 revealedAnswers[key] = false;
@@ -1106,7 +1140,7 @@
 
                         return {
                             ...root,
-                            questionSet: questionSetData,
+                            questionSet: enhancedQuestionSet,
                             gameState: {
                                 ...this.getInitialGameState(),
                                 revealedAnswers: revealedAnswers
@@ -1142,7 +1176,8 @@
                             ...gameState,
                             currentQuestion: nextQuestionIndex,
                             strikes: 0,
-                            phase: isRoundCompleted ? 'round_over' : 'setup'
+                            phase: isRoundCompleted ? 'round_over' : 'setup',
+                            roundPoints: 0
                         };
                     });
                     if (result.committed) {
@@ -1176,7 +1211,8 @@
                             ...gameState,
                             currentQuestion: prevQuestionIndex,
                             strikes: 0,
-                            phase: isRoundCompleted ? 'round_over' : 'setup'
+                            phase: isRoundCompleted ? 'round_over' : 'setup',
+                            roundPoints: 0
                         };
                     });
                     if (result.committed) {
@@ -1267,13 +1303,67 @@
                             newCompletedRounds = [...newCompletedRounds, currentQ];
                         }
 
+                        // Calculate points for this answer
+                        const answerPoints = currentQuestion ? (currentQuestion.answers[answerIndex].points || 0) : 0;
+
+                        // Determine point changes based on game phase
+                        let team1ScoreChange = 0;
+                        let team2ScoreChange = 0;
+                        let newRoundPoints = gameState.roundPoints || 0;
+
+                        if (gameState.phase === 'faceoff' || gameState.phase === 'main_game') {
+                            // Normal scoring: controlling team gets points
+                            if (teamNumber === 1) {
+                                team1ScoreChange = answerPoints;
+                            } else {
+                                team2ScoreChange = answerPoints;
+                            }
+                            newRoundPoints += answerPoints;
+                        } else if (gameState.phase === 'steal') {
+                            // Steal successful: transfer all round points to stealing team
+                            const controllingTeam = root.buzzer.controllingTeam; // Use original buzzer state
+                            const currentRoundPoints = gameState.roundPoints || 0;
+                            
+                            // The stealing team gets answer points + all round points
+                            // The controlling team loses all their accumulated round points
+                            if (controllingTeam === 1) {
+                                // Team 1 was controlling, Team 2 is stealing
+                                team1ScoreChange = -currentRoundPoints; // Team 1 loses round points
+                                team2ScoreChange = answerPoints + currentRoundPoints; // Team 2 gains answer + round points
+                            } else if (controllingTeam === 2) {
+                                // Team 2 was controlling, Team 1 is stealing
+                                team2ScoreChange = -currentRoundPoints; // Team 2 loses round points
+                                team1ScoreChange = answerPoints + currentRoundPoints; // Team 1 gains answer + round points
+                            } else {
+                                // No controlling team (shouldn't happen, but safety)
+                                if (teamNumber === 1) {
+                                    team1ScoreChange = answerPoints;
+                                } else {
+                                    team2ScoreChange = answerPoints;
+                                }
+                            }
+                            newRoundPoints = 0; // Round points consumed in steal
+                        }
+
+                        // Calculate new scores
+                        const newTeam1Score = (gameState.team1Score || 0) + team1ScoreChange;
+                        const newTeam2Score = (gameState.team2Score || 0) + team2ScoreChange;
+
+                        // Reset round points when transitioning to round_over
+                        if (newPhase === 'round_over') {
+                            newRoundPoints = 0;
+                        }
+
                         return {
                             ...root,
                             gameState: {
                                 ...gameState,
                                 revealedAnswers: newRevealedAnswers,
                                 strikes: 0,
-                                phase: newPhase
+                                phase: newPhase,
+                                team1Score: newTeam1Score,
+                                team2Score: newTeam2Score,
+                                roundPoints: newRoundPoints
                             },
                             buzzer: newBuzzer,
                             completedRounds: newCompletedRounds
@@ -1335,12 +1425,21 @@
                             newCompletedRounds = [...newCompletedRounds, currentQ];
                         }
 
+                        // Handle round points reset
+                        let newRoundPoints = gameState.roundPoints || 0;
+                        
+                        // Reset round points when transitioning to round_over
+                        if (newPhase === 'round_over') {
+                            newRoundPoints = 0;
+                        }
+
                         return {
                             ...root,
                             gameState: {
                                 ...gameState,
                                 strikes: newStrikes_final,
-                                phase: newPhase
+                                phase: newPhase,
+                                roundPoints: newRoundPoints
                             },
                             buzzer: newBuzzer,
                             completedRounds: newCompletedRounds
@@ -1575,6 +1674,50 @@
                     return { success: false, error: error.message || 'Unknown error' };
                 }
             }
+
+            /**
+             * Calculates point distribution using exponential decay with randomization
+             */
+            assignPointsExponentialDecay(numAnswers) {
+                // Random decay rate between 0.6 and 0.8
+                const decayRate = 0.6 + (Math.random() * 0.2);
+                
+                // Step 1: Generate raw exponential decay values
+                let rawValues = [];
+                let currentValue = 1; // Starting value (will be scaled)
+                
+                for (let i = 0; i < numAnswers; i++) {
+                    rawValues.push(currentValue);
+                    currentValue *= decayRate;
+                }
+                
+                // Step 2: Calculate proportional scaling factor
+                const rawSum = rawValues.reduce((sum, val) => sum + val, 0);
+                const scaleFactor = 100 / rawSum;
+                
+                // Step 3: Scale values and round
+                let scaledValues = rawValues.map(val => val * scaleFactor);
+                let points = scaledValues.map(val => Math.round(val));
+                
+                // Step 4: Adjust for rounding errors to ensure exact sum of 100
+                let currentSum = points.reduce((sum, val) => sum + val, 0);
+                let difference = 100 - currentSum;
+                
+                // Distribute difference starting with largest values
+                let adjustmentIndex = 0;
+                while (difference !== 0) {
+                    if (difference > 0) {
+                        points[adjustmentIndex]++;
+                        difference--;
+                    } else {
+                        points[adjustmentIndex]--;
+                        difference++;
+                    }
+                    adjustmentIndex = (adjustmentIndex + 1) % numAnswers;
+                }
+                
+                return points;
+            }
         }
 
         // READ-ONLY STATE - Updated only by Firebase listeners
@@ -1587,6 +1730,7 @@
         let strikes = 0;
         let team1Score = 0;
         let team2Score = 0;
+        let roundPoints = 0;
         let buzzerState = { active: false, firstBuzz: null, controllingTeam: null };
         let completedRounds = [];
         let availableQuestionSets = [];
@@ -1810,7 +1954,8 @@
                 // Create button content
                 const answerText = document.createElement('span');
                 answerText.className = 'answer-text';
-                answerText.textContent = `${answer.rank}. ${answer.text} (${answer.points} pts)`;
+                // Remove the (X pts) from the display text since we're using badges
+                answerText.textContent = `${answer.rank}. ${answer.text}`;
                 
                 const teamAssignment = document.createElement('span');
                 teamAssignment.className = 'team-assignment';
@@ -1824,9 +1969,15 @@
                 } else {
                     teamAssignment.textContent = '';
                 }
+
+                // Create point badge
+                const pointBadge = document.createElement('span');
+                pointBadge.className = 'point-badge';
+                pointBadge.textContent = answer.points || '0';
                 
                 answerButton.appendChild(answerText);
                 answerButton.appendChild(teamAssignment);
+                answerButton.appendChild(pointBadge);
                 
                 // Set click handler
                 if (!isRevealed) {
@@ -2126,11 +2277,18 @@
             database.ref('gameState/team1Score').on('value', (snapshot) => {
                 team1Score = snapshot.val() || 0;
                 updateTeamsDisplay();
+                updateTitlebarContent();
             });
 
             database.ref('gameState/team2Score').on('value', (snapshot) => {
                 team2Score = snapshot.val() || 0;
                 updateTeamsDisplay();
+                updateTitlebarContent();
+            });
+
+            database.ref('gameState/roundPoints').on('value', (snapshot) => {
+                roundPoints = snapshot.val() || 0;
+                // Round points could be displayed somewhere if desired
             });
 
             // Listen for buzzer state
