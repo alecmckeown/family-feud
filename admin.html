@@ -773,8 +773,11 @@
                             });
                         });
 
+                        // Handle the initial null case properly
+                        const baseRoot = root || {};
+                        
                         return {
-                            ...root,
+                            ...baseRoot,
                             questionSet: questionSetData,
                             gameState: {
                                 currentQuestion: 0,
@@ -799,6 +802,18 @@
             async nextQuestion() {
                 try {
                     const result = await this.db.ref('gameState').transaction((gameState) => {
+                        if (gameState === null) {
+                            // First call - provide initial state with incremented question
+                            return {
+                                currentQuestion: 1,
+                                team1Score: 0,
+                                team2Score: 0,
+                                revealedAnswers: {},
+                                strikes: 0,
+                                phase: 'setup'
+                            };
+                        }
+                        
                         if (!gameState) return undefined;
                         return {
                             ...gameState,
@@ -821,6 +836,18 @@
             async previousQuestion() {
                 try {
                     const result = await this.db.ref('gameState').transaction((gameState) => {
+                        if (gameState === null) {
+                            // First call - provide initial state at question 0 (can't go lower)
+                            return {
+                                currentQuestion: 0,
+                                team1Score: 0,
+                                team2Score: 0,
+                                revealedAnswers: {},
+                                strikes: 0,
+                                phase: 'setup'
+                            };
+                        }
+                        
                         if (!gameState) return undefined;
                         return {
                             ...gameState,
@@ -843,7 +870,42 @@
             async awardAnswer(teamNumber, answerIndex) {
                 try {
                     const result = await this.db.ref().transaction((root) => {
-                        if (!root || !root.gameState || !root.questionSet) return undefined;
+                        if (root === null) {
+                            // First call - we need to provide what we expect the initial state to be
+                            // Since award answer should only happen when game is initialized, 
+                            // we shouldn't normally hit this, but we need to handle it properly
+                            return {
+                                gameState: {
+                                    currentQuestion: 0,
+                                    phase: 'faceoff', // assume we're in faceoff if awarding
+                                    strikes: 0,
+                                    team1Score: 0,
+                                    team2Score: 0,
+                                    revealedAnswers: {
+                                        [`q0_a${answerIndex}`]: true
+                                    }
+                                },
+                                buzzer: {
+                                    active: false,
+                                    controllingTeam: teamNumber,
+                                    firstBuzz: null
+                                },
+                                completedFaceoffs: [0],
+                                questionSet: root?.questionSet || {},
+                                teams: root?.teams || null,
+                                countdown: { active: false, timeLeft: 0 }
+                            };
+                        }
+                        
+                        if (!root) {
+                            return undefined;
+                        }
+                        if (!root.gameState) {
+                            return undefined;
+                        }
+                        if (!root.questionSet) {
+                            return undefined;
+                        }
 
                         const gameState = root.gameState;
                         const currentQ = gameState.currentQuestion || 0;
@@ -875,6 +937,24 @@
                             }
                         }
 
+                        // Check if all answers are now revealed for this question
+                        const currentQuestion = root.questionSet.questions[currentQ];
+                        if (currentQuestion) {
+                            const totalAnswers = currentQuestion.answers.length;
+                            let revealedCount = 0;
+                            for (let i = 0; i < totalAnswers; i++) {
+                                if (newRevealedAnswers[`q${currentQ}_a${i}`]) {
+                                    revealedCount++;
+                                }
+                            }
+                            
+                            // If all answers revealed, transition to round_over
+                            if (revealedCount === totalAnswers) {
+                                newPhase = 'round_over';
+                                newBuzzer.controllingTeam = null;
+                            }
+                        }
+
                         return {
                             ...root,
                             gameState: {
@@ -887,15 +967,40 @@
                             completedFaceoffs: newCompletedFaceoffs
                         };
                     });
+                    
                     return { success: result.committed, result };
                 } catch (error) {
-                    return { success: false, error: error.message };
+                    console.error('Award answer error:', error);
+                    return { success: false, error: error.message || 'Unknown error' };
                 }
             }
 
             async addStrike() {
                 try {
                     const result = await this.db.ref().transaction((root) => {
+                        if (root === null) {
+                            // First call - provide initial state with 1 strike
+                            return {
+                                gameState: {
+                                    currentQuestion: 0,
+                                    phase: 'main_game',
+                                    strikes: 1,
+                                    team1Score: 0,
+                                    team2Score: 0,
+                                    revealedAnswers: {}
+                                },
+                                buzzer: {
+                                    active: false,
+                                    controllingTeam: 1,
+                                    firstBuzz: null
+                                },
+                                completedFaceoffs: [],
+                                questionSet: {},
+                                teams: null,
+                                countdown: { active: false, timeLeft: 0 }
+                            };
+                        }
+                        
                         if (!root || !root.gameState || !root.buzzer) return undefined;
 
                         const gameState = root.gameState;
@@ -912,17 +1017,18 @@
                             newBuzzer.controllingTeam = buzzer.controllingTeam === 1 ? 2 : 1;
                             newStrikes_final = 0;
                             // Stay in faceoff phase
+                        } else if (gameState.phase === 'steal') {
+                            // In steal phase, any strike ends the round
+                            newPhase = 'round_over';
+                            newBuzzer.controllingTeam = null;
+                            newStrikes_final = 0;
                         } else if (newStrikes >= 3) {
-                            // Normal main_game/steal behavior - 3 strikes needed
-                            if (buzzer.controllingTeam === 1) {
-                                newPhase = 'steal';
-                                newBuzzer.controllingTeam = 2;
-                                newStrikes_final = 0;
-                            } else if (buzzer.controllingTeam === 2) {
-                                newPhase = 'steal';
-                                newBuzzer.controllingTeam = 1;
-                                newStrikes_final = 0;
-                            }
+                            // Normal main_game behavior - 3 strikes needed
+                            // In steal phase, controllingTeam stays as the team that struck out
+                            // so the OTHER team (teamNumber !== controllingTeam) gets to steal
+                            newPhase = 'steal';
+                            // Keep controllingTeam the same - don't change it!
+                            newStrikes_final = 0;
                         }
 
                         return {
@@ -953,6 +1059,29 @@
             async skipFaceoff() {
                 try {
                     const result = await this.db.ref().transaction((root) => {
+                        if (root === null) {
+                            // First call - provide initial state
+                            return {
+                                gameState: {
+                                    currentQuestion: 0,
+                                    phase: 'main_game',
+                                    strikes: 0,
+                                    team1Score: 0,
+                                    team2Score: 0,
+                                    revealedAnswers: {}
+                                },
+                                buzzer: {
+                                    active: false,
+                                    firstBuzz: null,
+                                    controllingTeam: null
+                                },
+                                completedFaceoffs: [0],
+                                questionSet: {},
+                                teams: null,
+                                countdown: { active: false, timeLeft: 0 }
+                            };
+                        }
+                        
                         if (!root || !root.gameState) return undefined;
                         const currentQ = root.gameState.currentQuestion || 0;
                         const newCompletedFaceoffs = [...(root.completedFaceoffs || []), currentQ];
@@ -1033,7 +1162,19 @@
                     });
                     
                     // Now reset game state atomically
-                    const gameStateResult = await this.db.ref('gameState').transaction(() => {
+                    const gameStateResult = await this.db.ref('gameState').transaction((currentData) => {
+                        if (currentData === null) {
+                            // First call - provide initial state
+                            return {
+                                currentQuestion: 0,
+                                team1Score: 0,
+                                team2Score: 0,
+                                revealedAnswers: revealedAnswers,
+                                strikes: 0,
+                                phase: 'setup'
+                            };
+                        }
+                        
                         return {
                             currentQuestion: 0,
                             team1Score: 0,
@@ -1064,25 +1205,64 @@
 
             async transitionToFaceoff(winningTeam) {
                 try {
-                    const result = await this.db.ref().transaction((root) => {
-                        if (!root || !root.gameState || !root.buzzer) return undefined;
-                        
-                        return {
-                            ...root,
-                            gameState: {
-                                ...root.gameState,
+                    // Use transactions with proper null handling
+                    const gameStateResult = await this.db.ref('gameState').transaction((currentData) => {
+                        if (currentData === null) {
+                            // First call - establish initial state
+                            return {
                                 phase: 'faceoff',
-                                strikes: 0
-                            },
-                            buzzer: {
-                                ...root.buzzer,
-                                controllingTeam: winningTeam,
-                                active: false
-                            }
+                                strikes: 0,
+                                currentQuestion: 0,
+                                team1Score: 0,
+                                team2Score: 0,
+                                revealedAnswers: {}
+                            };
+                        }
+                        
+                        if (!currentData) {
+                            return undefined; // Abort transaction
+                        }
+                        
+                        // Update existing data
+                        return {
+                            ...currentData,
+                            phase: 'faceoff',
+                            strikes: 0
                         };
                     });
-                    return { success: result.committed, result };
+                    
+                    if (!gameStateResult.committed) {
+                        return { success: false, error: 'Failed to update game state' };
+                    }
+                    
+                    // Update buzzer with same pattern
+                    const buzzerResult = await this.db.ref('buzzer').transaction((currentData) => {
+                        if (currentData === null) {
+                            return {
+                                active: false,
+                                controllingTeam: winningTeam,
+                                firstBuzz: null
+                            };
+                        }
+                        
+                        if (!currentData) {
+                            return undefined;
+                        }
+                        
+                        return {
+                            ...currentData,
+                            controllingTeam: winningTeam,
+                            active: false
+                        };
+                    });
+                    
+                    if (!buzzerResult.committed) {
+                        return { success: false, error: 'Failed to update buzzer state' };
+                    }
+                    
+                    return { success: true };
                 } catch (error) {
+                    console.error('Failed to transition to faceoff:', error);
                     return { success: false, error: error.message };
                 }
             }
@@ -1216,6 +1396,7 @@
                 case 'buzzer_active': phaseText = 'Buzzer Active'; break;
                 case 'main_game': phaseText = 'Team Play'; break;
                 case 'steal': phaseText = 'Steal'; break;
+                case 'round_over': phaseText = 'Round Complete'; break;
                 default: phaseText = 'Unknown';
             }
             
@@ -1256,7 +1437,7 @@
 
         function isTeamButtonEnabled(teamNumber) {
             switch (gamePhase) {
-                case 'faceoff': return true;
+                case 'faceoff': return teamNumber === buzzerState.controllingTeam;
                 case 'main_game': return teamNumber === buzzerState.controllingTeam;
                 case 'steal': return teamNumber !== buzzerState.controllingTeam;
                 default: return false;
@@ -1313,7 +1494,8 @@
 
             // Listen for game phase
             database.ref('gameState/phase').on('value', (snapshot) => {
-                gamePhase = snapshot.val() || 'setup';
+                const newPhase = snapshot.val() || 'setup';
+                gamePhase = newPhase;
                 updatePhaseDisplay();
                 updateAnswerButtons();
             });
@@ -1325,15 +1507,20 @@
             });
 
             // Listen for buzzer state
-            database.ref('buzzer').on('value', (snapshot) => {
+            database.ref('buzzer').on('value', async (snapshot) => {
                 const prevBuzzerState = buzzerState;
                 buzzerState = snapshot.exists() ? snapshot.val() : 
                     { active: false, firstBuzz: null, controllingTeam: null };
                 
                 // Check if we just got a first buzz and need to transition to faceoff
-                if (!prevBuzzerState.firstBuzz && buzzerState.firstBuzz && gamePhase === 'buzzer_active') {
-                    console.log('Transitioning to faceoff for team:', buzzerState.firstBuzz.team);
-                    gameManager.transitionToFaceoff(buzzerState.firstBuzz.team);
+                if (!prevBuzzerState.firstBuzz && buzzerState.firstBuzz) {
+                    // Check current phase directly from database to avoid race condition
+                    const phaseSnapshot = await database.ref('gameState/phase').once('value');
+                    const currentPhase = phaseSnapshot.val();
+                    
+                    if (currentPhase === 'buzzer_active') {
+                        gameManager.transitionToFaceoff(buzzerState.firstBuzz.team);
+                    }
                 }
                 
                 updateBuzzerDisplay();
