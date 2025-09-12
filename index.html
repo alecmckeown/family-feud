@@ -33,6 +33,14 @@
             padding: 20px;
         }
         
+        .game-board {
+            position: relative;
+            padding-top: 20px; /* Reduced padding since scores are now fixed */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
         .header {
             text-align: center;
             margin-bottom: 30px;
@@ -45,20 +53,49 @@
         }
         
         .question {
-            font-size: 1.8em;
+            position: fixed;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 1000px;
+            height: 140px;
             background: rgba(255,255,255,0.1);
-            padding: 20px;
-            border-radius: 15px;
+            border-radius: 15px 15px 0 0;
+            border-bottom: 2px solid rgba(255,255,255,0.2);
+            z-index: 6;
+            
+            /* Content styling */
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            padding: 0 20px;
+            overflow: hidden;
+            
+            /* Dynamic font sizing */
+            font-size: 1.8em;
+            line-height: 1.2;
         }
         
         .answers-board {
+            position: fixed;
+            top: 260px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 1000px;
+            height: calc(100vh - 320px);
             background: rgba(0,0,0,0.3);
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
+            border-radius: 0 0 15px 15px;
+            z-index: 4;
+            
+            /* Content styling */
+            padding: 20px;
+            overflow-y: auto;
+            
+            /* Ensure answers fit properly */
+            box-sizing: border-box;
         }
         
         .answer-slot {
@@ -72,10 +109,15 @@
             border-radius: 10px;
             font-size: 1.5em;
             font-weight: bold;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             min-height: 60px;
+            transition: all 0.3s ease;
         }
+        
+        /* Dynamic answer row sizing */
+        .answer-slot.short { min-height: 50px; font-size: 1.6em; }    /* < 20 chars */
+        .answer-slot.medium { min-height: 60px; font-size: 1.5em; }   /* 20-40 chars */
+        .answer-slot.long { min-height: 80px; font-size: 1.3em; }     /* 40+ chars */
         
         .answer-slot.hidden {
             background: #333;
@@ -108,27 +150,119 @@
         }
         
         .scores {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
             display: flex;
-            justify-content: space-around;
-            margin-bottom: 20px;
+            justify-content: space-between;
+            z-index: 10;
+            pointer-events: none; /* Allow clicks to pass through */
         }
         
         .team-score {
-            background: rgba(255,255,255,0.2);
-            padding: 20px 40px;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 20px 25px;
             border-radius: 15px;
             text-align: center;
-            font-size: 1.5em;
+            font-size: 1.4em;
+            min-width: 180px;
+            max-width: 220px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.2);
+            transition: all 0.5s ease, transform 0.3s ease;
+            pointer-events: auto; /* Re-enable clicks on score boxes */
+        }
+        
+        /* Team-specific styling with dynamic colors */
+        #team1-score-box {
+            border-color: var(--team1-color);
+        }
+        
+        #team2-score-box {
+            border-color: var(--team2-color);
         }
         
         .team-name {
             font-size: 0.8em;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
+            opacity: 0.9;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        #team1-score-box .team-name {
+            color: var(--team1-color);
+        }
+        
+        #team2-score-box .team-name {
+            color: var(--team2-color);
         }
         
         .score-value {
             font-size: 2em;
             font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        #team1-score-box .score-value {
+            color: var(--team1-color);
+        }
+        
+        #team2-score-box .score-value {
+            color: var(--team2-color);
+        }
+        
+        /* Dynamic question font sizing */
+        .question.short { font-size: 2.2em; }     /* < 50 chars */
+        .question.medium { font-size: 1.8em; }    /* 50-100 chars */
+        .question.long { font-size: 1.4em; }      /* 100+ chars */
+        .team-score.controlling-team {
+            transform: scale(1.03);
+            animation: controllingTeamPulse 3s ease-in-out infinite;
+            border-width: 3px !important;
+        }
+        
+        @keyframes controllingTeamPulse {
+            0%, 100% { 
+                transform: scale(1.03); 
+            }
+            50% { 
+                transform: scale(1.06); 
+            }
+        }
+        
+        .team-strikes {
+            margin-top: 8px;
+            padding: 4px 8px;
+            background: rgba(244, 67, 54, 0.15);
+            border-radius: 8px;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            min-height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+        
+        .team-strikes.empty {
+            opacity: 0.3;
+            background: rgba(128, 128, 128, 0.1);
+            border: 1px solid rgba(128, 128, 128, 0.2);
+        }
+        
+        .team-strikes .strikes-text {
+            font-size: 1.2em;
+            color: #f44336;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        
+        .team-strikes.empty .strikes-text {
+            color: rgba(128, 128, 128, 0.5);
         }
         
         .no-questions {
@@ -146,14 +280,15 @@
         
         .connection-status {
             position: fixed;
-            top: 20px;
+            bottom: 20px;
             right: 20px;
             background: rgba(0,0,0,0.7);
             color: white;
-            padding: 10px 15px;
-            border-radius: 20px;
-            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 15px;
+            font-size: 10px;
             font-weight: bold;
+            z-index: 100;
         }
         
         .connected {
@@ -178,50 +313,49 @@
         
         @media (max-width: 768px) {
             .title { font-size: 2em; }
-            .question { font-size: 1.4em; }
-            .answer-slot { font-size: 1.2em; }
-            .answer-rank { font-size: 1.5em; }
+            .question { 
+                top: 140px;
+                width: 95%;
+                height: 70px;
+                padding: 0 15px;
+            }
+            .question.short { font-size: 1.8em; }
+            .question.medium { font-size: 1.4em; }
+            .question.long { font-size: 1.2em; }
+            .answers-board { 
+                top: 210px;
+                height: calc(100vh - 270px);
+                width: 95%;
+                padding: 15px;
+            }
+            .answer-slot { 
+                padding: 12px 20px;
+                margin: 8px 0;
+            }
+            .answer-slot.short { min-height: 45px; font-size: 1.3em; }
+            .answer-slot.medium { min-height: 50px; font-size: 1.2em; }
+            .answer-slot.long { min-height: 65px; font-size: 1.1em; }
+            .answer-rank { font-size: 1.3em; }
             .no-questions { font-size: 1.5em; padding: 50px 20px; }
-        }
-        
-        /* Enhanced display elements */
-        .game-phase-indicator {
-            background: rgba(255, 193, 7, 0.2);
-            border: 1px solid #FFC107;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .phase-text {
-            font-size: 1.2em;
-            color: #FFC107;
-            font-weight: bold;
-        }
-        
-        .strikes-display {
-            background: rgba(244, 67, 54, 0.2);
-            border: 1px solid #f44336;
-            border-radius: 10px;
-            padding: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .strikes-text {
-            font-size: 1.1em;
-            color: #f44336;
-            font-weight: bold;
+            .team-score {
+                padding: 15px 20px;
+                font-size: 1.2em;
+                min-width: 140px;
+            }
         }
         
         .buzz-results-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             background: rgba(76, 175, 80, 0.2);
             border: 1px solid #4CAF50;
             border-radius: 10px;
             padding: 15px;
-            margin-bottom: 20px;
             text-align: center;
+            z-index: 20;
+            min-width: 300px;
         }
         
         .buzz-winner-text {
@@ -231,12 +365,17 @@
         }
         
         .countdown-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             background: rgba(255, 193, 7, 0.3);
             border: 2px solid #FFC107;
             border-radius: 15px;
             padding: 20px;
-            margin-bottom: 20px;
             text-align: center;
+            z-index: 20;
+            min-width: 300px;
         }
         
         .countdown-timer {
@@ -269,11 +408,24 @@
         
         <!-- Game Board (hidden until questions loaded) -->
         <div class="game-board" id="game-board">
-            <!-- Game Phase Indicator -->
-            <div class="game-phase-indicator" id="phase-indicator" style="display: none;">
-                <div class="phase-text" id="phase-text">Game Setup</div>
+            <!-- Team Score Boxes -->
+            <div class="scores">
+                <div class="team-score" id="team1-score-box">
+                    <div class="team-name" id="team1-display-name">TEAM 1</div>
+                    <div class="score-value" id="team1-score">0</div>
+                    <div class="team-strikes empty" id="team1-strikes">
+                        <span class="strikes-text" id="team1-strikes-text">❌❌❌</span>
+                    </div>
+                </div>
+                <div class="team-score" id="team2-score-box">
+                    <div class="team-name" id="team2-display-name">TEAM 2</div>
+                    <div class="score-value" id="team2-score">0</div>
+                    <div class="team-strikes empty" id="team2-strikes">
+                        <span class="strikes-text" id="team2-strikes-text">❌❌❌</span>
+                    </div>
+                </div>
             </div>
-            
+
             <!-- Countdown Display -->
             <div class="countdown-display" id="countdown-display" style="display: none;">
                 <div class="countdown-text">Get Ready!</div>
@@ -285,23 +437,7 @@
                 <div class="buzz-winner-text" id="buzz-winner">Team 1 buzzed first!</div>
             </div>
             
-            <!-- Strikes Display -->
-            <div class="strikes-display" id="strikes-display" style="display: none;">
-                <div class="strikes-text" id="strikes-text">Team 1: ⚡⚡⚡ (3 strikes)</div>
-            </div>
-            
             <div class="question" id="current-question">Loading...</div>
-            
-            <div class="scores">
-                <div class="team-score">
-                    <div class="team-name" id="team1-display-name">TEAM 1</div>
-                    <div class="score-value" id="team1-score">0</div>
-                </div>
-                <div class="team-score">
-                    <div class="team-name" id="team2-display-name">TEAM 2</div>
-                    <div class="score-value" id="team2-score">0</div>
-                </div>
-            </div>
             
             <div class="answers-board" id="answers-board">
                 <!-- Answers will be populated by JavaScript -->
@@ -414,6 +550,132 @@
                 
                 answersBoard.appendChild(answerSlot);
             });
+            
+            // Apply dynamic sizing after building answers
+            applyDynamicSizing();
+        }
+        
+        function updateTeamColors(teams) {
+            // Apply team colors from database to CSS custom properties
+            const root = document.documentElement;
+            
+            if (teams.team1?.color) {
+                root.style.setProperty('--team1-color', teams.team1.color);
+            }
+            if (teams.team1?.secondaryColor) {
+                root.style.setProperty('--team1-secondary', teams.team1.secondaryColor);
+            }
+            if (teams.team2?.color) {
+                root.style.setProperty('--team2-color', teams.team2.color);
+            }
+            if (teams.team2?.secondaryColor) {
+                root.style.setProperty('--team2-secondary', teams.team2.secondaryColor);
+            }
+            
+            // Update team-specific glow effects with current colors
+            updateTeamGlowEffects();
+        }
+        
+        function updateTeamGlowEffects() {
+            // Get current colors from CSS custom properties
+            const team1Color = getComputedStyle(document.documentElement).getPropertyValue('--team1-color').trim();
+            const team2Color = getComputedStyle(document.documentElement).getPropertyValue('--team2-color').trim();
+            
+            // Parse RGB values for glow effects (simplified - assumes hex colors)
+            const team1Rgb = hexToRgb(team1Color);
+            const team2Rgb = hexToRgb(team2Color);
+            
+            if (team1Rgb) {
+                const team1Box = document.getElementById('team1-score-box');
+                const team1Name = team1Box.querySelector('.team-name');
+                team1Box.style.boxShadow = `0 8px 32px rgba(0,0,0,0.3), 0 0 15px rgba(${team1Rgb.r}, ${team1Rgb.g}, ${team1Rgb.b}, 0.3)`;
+                team1Name.style.textShadow = `0 0 8px rgba(${team1Rgb.r}, ${team1Rgb.g}, ${team1Rgb.b}, 0.5)`;
+            }
+            
+            if (team2Rgb) {
+                const team2Box = document.getElementById('team2-score-box');
+                const team2Name = team2Box.querySelector('.team-name');
+                team2Box.style.boxShadow = `0 8px 32px rgba(0,0,0,0.3), 0 0 15px rgba(${team2Rgb.r}, ${team2Rgb.g}, ${team2Rgb.b}, 0.3)`;
+                team2Name.style.textShadow = `0 0 8px rgba(${team2Rgb.r}, ${team2Rgb.g}, ${team2Rgb.b}, 0.5)`;
+            }
+            
+            // Apply controlling team effects
+            updateControllingTeamEffects();
+        }
+        
+        function updateControllingTeamEffects() {
+            // Remove controlling team effects from both teams first
+            const team1Box = document.getElementById('team1-score-box');
+            const team2Box = document.getElementById('team2-score-box');
+            
+            team1Box.classList.remove('controlling-team');
+            team2Box.classList.remove('controlling-team');
+            
+            // Apply controlling team effects if there's an active controlling team
+            if (currentControllingTeam) {
+                const controllingBox = document.getElementById(`team${currentControllingTeam}-score-box`);
+                controllingBox.classList.add('controlling-team');
+                
+                // Get the team's color for enhanced effects
+                const teamColor = getComputedStyle(document.documentElement)
+                    .getPropertyValue(`--team${currentControllingTeam}-color`).trim();
+                const teamRgb = hexToRgb(teamColor);
+                
+                if (teamRgb) {
+                    // Enhanced glow for controlling team
+                    controllingBox.style.boxShadow = `
+                        0 8px 32px rgba(0,0,0,0.3), 
+                        0 0 25px rgba(${teamRgb.r}, ${teamRgb.g}, ${teamRgb.b}, 0.6),
+                        0 0 40px rgba(${teamRgb.r}, ${teamRgb.g}, ${teamRgb.b}, 0.4),
+                        inset 0 0 20px rgba(${teamRgb.r}, ${teamRgb.g}, ${teamRgb.b}, 0.1)
+                    `;
+                    
+                    // Enhanced border for controlling team
+                    controllingBox.style.borderColor = teamColor;
+                    controllingBox.style.borderWidth = '3px';
+                }
+            }
+        }
+        
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function applyDynamicSizing() {
+            // Dynamic question sizing
+            const questionEl = document.getElementById('current-question');
+            const questionText = questionEl.textContent;
+            const questionLength = questionText.length;
+            
+            questionEl.className = 'question';
+            if (questionLength < 50) {
+                questionEl.classList.add('short');
+            } else if (questionLength < 100) {
+                questionEl.classList.add('medium');
+            } else {
+                questionEl.classList.add('long');
+            }
+            
+            // Dynamic answer sizing
+            const answerSlots = document.querySelectorAll('.answer-slot');
+            answerSlots.forEach(slot => {
+                const answerText = slot.querySelector('.answer-text')?.textContent || '';
+                const answerLength = answerText.length;
+                
+                slot.classList.remove('short', 'medium', 'long');
+                if (answerLength < 20) {
+                    slot.classList.add('short');
+                } else if (answerLength < 40) {
+                    slot.classList.add('medium');
+                } else {
+                    slot.classList.add('long');
+                }
+            });
         }
 
         function initializeGame() {
@@ -441,6 +703,7 @@
                 currentQuestionIndex = snapshot.val() || 0;
                 const questionText = currentQuestions[currentQuestionIndex]?.question || 'Loading...';
                 document.getElementById('current-question').textContent = questionText;
+                applyDynamicSizing(); // Apply dynamic sizing after text update
                 updateQuestionVisibility(currentPhase); // Apply visibility rules
                 rebuildAnswersBoard(); // Rebuild when question changes
             });
@@ -475,11 +738,10 @@
                 document.getElementById('team2-score').textContent = snapshot.val() || 0;
             });
 
-            // Game phase display
+            // Game phase for question visibility
             database.ref('gameState/phase').on('value', (snapshot) => {
                 const phase = snapshot.val() || 'setup';
                 currentPhase = phase;
-                updatePhaseDisplay(phase);
                 updateQuestionVisibility(phase);
             });
 
@@ -499,10 +761,11 @@
                 updateStrikesDisplay(strikes);
             });
 
-            // Controlling team (for strikes display)
+            // Controlling team (for strikes display and visual effects)
             database.ref('buzzer/controllingTeam').on('value', (snapshot) => {
                 const controllingTeam = snapshot.val();
                 updateStrikesDisplay(null, controllingTeam);
+                updateControllingTeamEffects(); // Add visual effects for controlling team
             });
 
             // Countdown
@@ -513,44 +776,6 @@
                     hideCountdown();
                 }
             });
-        }
-
-        function updatePhaseDisplay(phase) {
-            let phaseText = '';
-            let showPhase = true;
-
-            switch (phase) {
-                case 'setup':
-                    showPhase = false;
-                    break;
-                case 'faceoff':
-                    phaseText = 'Face-off in Progress';
-                    break;
-                case 'countdown':
-                    phaseText = 'Get Ready!';
-                    break;
-                case 'buzzer_active':
-                    phaseText = 'BUZZER ACTIVE!';
-                    break;
-                case 'main_game':
-                    phaseText = 'Team Playing';
-                    break;
-                case 'steal':
-                    phaseText = 'Steal Opportunity';
-                    break;
-                case 'round_over':
-                    phaseText = 'Round Complete';
-                    break;
-                default:
-                    showPhase = false;
-            }
-
-            if (showPhase) {
-                document.getElementById('phase-text').textContent = phaseText;
-                document.getElementById('phase-indicator').style.display = 'block';
-            } else {
-                document.getElementById('phase-indicator').style.display = 'none';
-            }
         }
 
         function updateQuestionVisibility(phase) {
@@ -594,18 +819,20 @@
             if (strikes !== null && strikes !== undefined) currentStrikes = strikes;
             if (controllingTeam !== null && controllingTeam !== undefined) currentControllingTeam = controllingTeam;
 
+            // Reset both teams to empty state
+            document.getElementById('team1-strikes').className = 'team-strikes empty';
+            document.getElementById('team2-strikes').className = 'team-strikes empty';
+            document.getElementById('team1-strikes-text').textContent = '❌❌❌';
+            document.getElementById('team2-strikes-text').textContent = '❌❌❌';
+
             if (currentStrikes > 0 && currentControllingTeam) {
-                // Get team name directly from DOM
-                const team1Name = document.getElementById('team1-display-name').textContent;
-                const team2Name = document.getElementById('team2-display-name').textContent;
-                const teamName = currentControllingTeam === 1 ? team1Name : team2Name;
+                const strikeSymbols = '❌'.repeat(currentStrikes);
+                const teamStrikesId = `team${currentControllingTeam}-strikes`;
+                const teamStrikesTextId = `team${currentControllingTeam}-strikes-text`;
                 
-                const strikeSymbols = '⚡'.repeat(currentStrikes);
-                document.getElementById('strikes-text').textContent = 
-                    `${teamName}: ${strikeSymbols} (${currentStrikes} strike${currentStrikes > 1 ? 's' : ''})`;
-                document.getElementById('strikes-display').style.display = 'block';
-            } else {
-                document.getElementById('strikes-display').style.display = 'none';
+                // Show active strikes for controlling team
+                document.getElementById(teamStrikesTextId).textContent = strikeSymbols;
+                document.getElementById(teamStrikesId).className = 'team-strikes';
             }
         }
 
