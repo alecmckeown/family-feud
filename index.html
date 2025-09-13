@@ -367,7 +367,7 @@
     
     <div class="game-container">
         <div class="header">
-            <h1 class="title">RESIDENT FAMILY FEUD</h1>
+            <h1 class="title" id="game-title">FAMILY FEUD</h1>
         </div>
         
         <!-- No Questions State -->
@@ -687,11 +687,22 @@
             // Listen for question set changes - show/hide game board
             database.ref('questionSet').on('value', (snapshot) => {
                 if (snapshot.exists() && snapshot.val().questions && snapshot.val().questions.length > 0) {
-                    currentQuestions = snapshot.val().questions;
+                    const questionSet = snapshot.val();
+                    currentQuestions = questionSet.questions;
+                    
+                    // Update the game title
+                    const titleElement = document.getElementById('game-title');
+                    if (questionSet.name) {
+                        titleElement.textContent = questionSet.name.toUpperCase();
+                    } else {
+                        titleElement.textContent = 'FAMILY FEUD';
+                    }
+                    
                     showGameBoard();
                     rebuildAnswersBoard();
                 } else {
                     currentQuestions = [];
+                    document.getElementById('game-title').textContent = 'FAMILY FEUD';
                     hideGameBoard();
                 }
             });
