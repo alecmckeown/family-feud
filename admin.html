@@ -1200,13 +1200,24 @@
 
             async awardAnswer(teamNumber, answerIndex) {
                 try {
+                    // Get current phase before transaction to preserve it in initial state
+                    const currentPhaseSnapshot = await this.db.ref('gameState/phase').once('value');
+                    const currentPhase = currentPhaseSnapshot.val() || 'setup';
+                    const currentQuestionSnapshot = await this.db.ref('gameState/currentQuestion').once('value');
+                    const currentQuestionIndex = currentQuestionSnapshot.val() || 0;
+                    const currentRevealedSnapshot = await this.db.ref('gameState/revealedAnswers').once('value');
+                    const currentRevealedAnswers = currentRevealedSnapshot.val() || {};
+                    
                     const result = await this.db.ref().transaction((root) => {
                         if (root === null) {
-                            const initialRoot = this.getInitialRootForGame(0);
-                            initialRoot.gameState.phase = 'faceoff';
-                            initialRoot.gameState.revealedAnswers[`q0_a${answerIndex}`] = true;
+                            const initialRoot = this.getInitialRootForGame(currentQuestionIndex);
+                            initialRoot.gameState.phase = currentPhase; // Preserve current phase
+                            initialRoot.gameState.revealedAnswers = {
+                                ...currentRevealedAnswers,
+                                [`q${currentQuestionIndex}_a${answerIndex}`]: true
+                            };
                             initialRoot.buzzer.controllingTeam = teamNumber;
-                            // Don't mark as completed - still in faceoff phase
+                            // Don't mark as completed - preserve current phase
                             return initialRoot;
                         }
                         
@@ -1354,10 +1365,16 @@
 
             async addStrike() {
                 try {
+                    // Get current phase before transaction to preserve it in initial state
+                    const currentPhaseSnapshot = await this.db.ref('gameState/phase').once('value');
+                    const currentPhase = currentPhaseSnapshot.val() || 'main_game';
+                    const currentQuestionSnapshot = await this.db.ref('gameState/currentQuestion').once('value');
+                    const currentQuestionIndex = currentQuestionSnapshot.val() || 0;
+                    
                     const result = await this.db.ref().transaction((root) => {
                         if (root === null) {
-                            const initialRoot = this.getInitialRootForGame(0);
-                            initialRoot.gameState.phase = 'main_game';
+                            const initialRoot = this.getInitialRootForGame(currentQuestionIndex);
+                            initialRoot.gameState.phase = currentPhase; // Preserve current phase
                             initialRoot.gameState.strikes = 1;
                             initialRoot.buzzer.controllingTeam = 1;
                             return initialRoot;
@@ -2164,13 +2181,17 @@
             database.ref('questionSet').on('value', (snapshot) => {
                 if (snapshot.exists() && snapshot.val().questions && Array.isArray(snapshot.val().questions)) {
                     const questionSetData = snapshot.val();
-                    currentQuestions = questionSetData.questions;
-                    currentQuestionSetName = questionSetData.name || 'Unknown';
-                    updateQuestionDisplay();
-                } else {
-                    currentQuestions = [];
-                    hideGameControls();
+                    const newQuestions = questionSetData.questions;
+                    const newName = questionSetData.name || 'Unknown';
+                    
+                    // Only update if this is actually different data (prevents transaction glitches)
+                    if (newQuestions.length > 0 && (currentQuestions.length === 0 || newName !== currentQuestionSetName)) {
+                        currentQuestions = newQuestions;
+                        currentQuestionSetName = newName;
+                        updateQuestionDisplay();
+                    }
                 }
+                // Ignore invalid/empty data - preserve existing questions
             });
 
             // Listen for current question index
