@@ -220,51 +220,6 @@
                 0 0 50px rgba(255,255,255,0.3),
                 0 0 80px rgba(255,255,255,0.15);
             transition: all 0.4s ease;
-            position: relative;
-            overflow: visible;
-        }
-        
-        /* Rising sparkles effect */
-        .team-score.controlling-team::before,
-        .team-score.controlling-team::after {
-            content: '';
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.6) 50%, transparent 100%);
-            border-radius: 50%;
-            animation: sparkleRise 3s ease-in-out infinite;
-        }
-        
-        .team-score.controlling-team::before {
-            left: 20%;
-            animation-delay: 0s;
-        }
-        
-        .team-score.controlling-team::after {
-            right: 20%;
-            animation-delay: 1.5s;
-        }
-        
-        @keyframes sparkleRise {
-            0% {
-                bottom: -10px;
-                opacity: 0;
-                transform: scale(0.5) translateX(0px);
-            }
-            20% {
-                opacity: 1;
-                transform: scale(1) translateX(5px);
-            }
-            80% {
-                opacity: 1;
-                transform: scale(0.8) translateX(-10px);
-            }
-            100% {
-                bottom: 120px;
-                opacity: 0;
-                transform: scale(0.3) translateX(15px);
-            }
         }
         
         .team-strikes {
@@ -799,14 +754,15 @@
         function updateStrikesDisplay(strikes, controllingTeam) {
             // Update stored values if provided
             if (strikes !== null && strikes !== undefined) currentStrikes = strikes;
-            if (controllingTeam !== null && controllingTeam !== undefined) currentControllingTeam = controllingTeam;
+            if (controllingTeam !== undefined) currentControllingTeam = controllingTeam; // Allow null values
 
-            // Reset both teams to empty state
+            // Reset both teams to empty state first
             document.getElementById('team1-strikes').className = 'team-strikes empty';
             document.getElementById('team2-strikes').className = 'team-strikes empty';
             document.getElementById('team1-strikes-text').textContent = '❌❌❌';
             document.getElementById('team2-strikes-text').textContent = '❌❌❌';
 
+            // Only show strikes if we have both strikes > 0 AND a controlling team
             if (currentStrikes > 0 && currentControllingTeam) {
                 const strikeSymbols = '❌'.repeat(currentStrikes);
                 const teamStrikesId = `team${currentControllingTeam}-strikes`;
@@ -816,6 +772,7 @@
                 document.getElementById(teamStrikesTextId).textContent = strikeSymbols;
                 document.getElementById(teamStrikesId).className = 'team-strikes';
             }
+            // If either strikes is 0 OR no controlling team, strikes remain cleared (handled by reset above)
         }
 
         function showCountdown(timeLeft) {

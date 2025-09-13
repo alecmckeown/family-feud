@@ -1421,7 +1421,8 @@
                             // so the OTHER team (teamNumber !== controllingTeam) gets to steal
                             newPhase = 'steal';
                             // Keep controllingTeam the same - don't change it!
-                            newStrikes_final = 0;
+                            // Keep strikes at 3 to show they struck out - don't reset to 0
+                            newStrikes_final = 3;
                         }
 
                         // Mark round as completed when transitioning to round_over
