@@ -164,58 +164,46 @@
         }
         
         .team-score {
-            background: rgba(255,255,255,0.15);
-            backdrop-filter: blur(10px);
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            color: #212529;
             padding: 20px 25px;
-            border-radius: 15px;
+            border-radius: 12px;
             text-align: center;
             font-size: 1.4em;
             min-width: 180px;
             max-width: 220px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-            border: 2px solid rgba(255,255,255,0.2);
-            transition: all 0.5s ease, transform 0.3s ease;
-            pointer-events: auto; /* Re-enable clicks on score boxes */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1);
+            border: 3px solid transparent;
+            transition: all 0.3s ease;
+            pointer-events: auto;
         }
         
         /* Team-specific styling with dynamic colors */
         #team1-score-box {
             border-color: var(--team1-color);
+            background: linear-gradient(135deg, var(--team1-color) 0%, color-mix(in srgb, var(--team1-color) 70%, white) 100%);
         }
         
         #team2-score-box {
             border-color: var(--team2-color);
+            background: linear-gradient(135deg, var(--team2-color) 0%, color-mix(in srgb, var(--team2-color) 70%, white) 100%);
         }
         
         .team-name {
             font-size: 0.8em;
             margin-bottom: 8px;
-            opacity: 0.9;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
-        }
-        
-        #team1-score-box .team-name {
-            color: var(--team1-color);
-        }
-        
-        #team2-score-box .team-name {
-            color: var(--team2-color);
+            color: rgba(255,255,255,0.9);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
         }
         
         .score-value {
             font-size: 2em;
             font-weight: bold;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        
-        #team1-score-box .score-value {
-            color: var(--team1-color);
-        }
-        
-        #team2-score-box .score-value {
-            color: var(--team2-color);
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
         }
         
         /* Dynamic question font sizing */
@@ -223,17 +211,20 @@
         .question.medium { font-size: 2.2em; }    /* 50-100 chars */
         .question.long { font-size: 1.8em; }      /* 100+ chars */
         .team-score.controlling-team {
-            transform: scale(1.03);
-            animation: controllingTeamPulse 3s ease-in-out infinite;
-            border-width: 3px !important;
+            transform: scale(1.05);
+            animation: controllingTeamPulse 2s ease-in-out infinite;
+            border-width: 4px !important;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25), 0 0 0 4px rgba(255,255,255,0.3) !important;
         }
         
         @keyframes controllingTeamPulse {
             0%, 100% { 
-                transform: scale(1.03); 
+                transform: scale(1.05);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.25), 0 0 0 4px rgba(255,255,255,0.3);
             }
             50% { 
-                transform: scale(1.06); 
+                transform: scale(1.08);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.3), 0 0 0 6px rgba(255,255,255,0.4);
             }
         }
         
@@ -547,36 +538,6 @@
             if (teams.team2?.secondaryColor) {
                 root.style.setProperty('--team2-secondary', teams.team2.secondaryColor);
             }
-            
-            // Update team-specific glow effects with current colors
-            updateTeamGlowEffects();
-        }
-        
-        function updateTeamGlowEffects() {
-            // Get current colors from CSS custom properties
-            const team1Color = getComputedStyle(document.documentElement).getPropertyValue('--team1-color').trim();
-            const team2Color = getComputedStyle(document.documentElement).getPropertyValue('--team2-color').trim();
-            
-            // Parse RGB values for glow effects (simplified - assumes hex colors)
-            const team1Rgb = hexToRgb(team1Color);
-            const team2Rgb = hexToRgb(team2Color);
-            
-            if (team1Rgb) {
-                const team1Box = document.getElementById('team1-score-box');
-                const team1Name = team1Box.querySelector('.team-name');
-                team1Box.style.boxShadow = `0 8px 32px rgba(0,0,0,0.3), 0 0 15px rgba(${team1Rgb.r}, ${team1Rgb.g}, ${team1Rgb.b}, 0.3)`;
-                team1Name.style.textShadow = `0 0 8px rgba(${team1Rgb.r}, ${team1Rgb.g}, ${team1Rgb.b}, 0.5)`;
-            }
-            
-            if (team2Rgb) {
-                const team2Box = document.getElementById('team2-score-box');
-                const team2Name = team2Box.querySelector('.team-name');
-                team2Box.style.boxShadow = `0 8px 32px rgba(0,0,0,0.3), 0 0 15px rgba(${team2Rgb.r}, ${team2Rgb.g}, ${team2Rgb.b}, 0.3)`;
-                team2Name.style.textShadow = `0 0 8px rgba(${team2Rgb.r}, ${team2Rgb.g}, ${team2Rgb.b}, 0.5)`;
-            }
-            
-            // Apply controlling team effects
-            updateControllingTeamEffects();
         }
         
         function updateControllingTeamEffects() {
@@ -591,37 +552,9 @@
             if (currentControllingTeam) {
                 const controllingBox = document.getElementById(`team${currentControllingTeam}-score-box`);
                 controllingBox.classList.add('controlling-team');
-                
-                // Get the team's color for enhanced effects
-                const teamColor = getComputedStyle(document.documentElement)
-                    .getPropertyValue(`--team${currentControllingTeam}-color`).trim();
-                const teamRgb = hexToRgb(teamColor);
-                
-                if (teamRgb) {
-                    // Enhanced glow for controlling team
-                    controllingBox.style.boxShadow = `
-                        0 8px 32px rgba(0,0,0,0.3), 
-                        0 0 25px rgba(${teamRgb.r}, ${teamRgb.g}, ${teamRgb.b}, 0.6),
-                        0 0 40px rgba(${teamRgb.r}, ${teamRgb.g}, ${teamRgb.b}, 0.4),
-                        inset 0 0 20px rgba(${teamRgb.r}, ${teamRgb.g}, ${teamRgb.b}, 0.1)
-                    `;
-                    
-                    // Enhanced border for controlling team
-                    controllingBox.style.borderColor = teamColor;
-                    controllingBox.style.borderWidth = '3px';
-                }
             }
         }
         
-        function hexToRgb(hex) {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? {
-                r: parseInt(result[1], 16),
-                g: parseInt(result[2], 16),
-                b: parseInt(result[3], 16)
-            } : null;
-        }
-
         function applyDynamicSizing() {
             // Dynamic question sizing
             const questionEl = document.getElementById('current-question');
