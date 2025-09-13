@@ -1456,11 +1456,27 @@
 
             async skipFaceoff() {
                 try {
+                    // Get current state before transaction to preserve it in initial state
+                    const currentQuestionSnapshot = await this.db.ref('gameState/currentQuestion').once('value');
+                    const currentQuestionIndex = currentQuestionSnapshot.val() || 0;
+                    const currentRevealedSnapshot = await this.db.ref('gameState/revealedAnswers').once('value');
+                    const currentRevealedAnswers = currentRevealedSnapshot.val() || {};
+                    const currentTeamsSnapshot = await this.db.ref('teams').once('value');
+                    const currentTeams = currentTeamsSnapshot.val() || {};
+                    const currentScoresSnapshot = await this.db.ref('gameState').once('value');
+                    const currentGameState = currentScoresSnapshot.val() || {};
+                    
                     const result = await this.db.ref().transaction((root) => {
                         if (root === null) {
-                            const initialRoot = this.getInitialRootForGame(0);
-                            initialRoot.gameState.phase = 'round_over';
-                            initialRoot.completedRounds = [0];
+                            const initialRoot = this.getInitialRootForGame(currentQuestionIndex);
+                            initialRoot.gameState = {
+                                ...initialRoot.gameState,
+                                ...currentGameState,
+                                phase: 'round_over',
+                                revealedAnswers: currentRevealedAnswers
+                            };
+                            initialRoot.teams = currentTeams;
+                            initialRoot.completedRounds = [currentQuestionIndex];
                             return initialRoot;
                         }
                         
@@ -1624,11 +1640,29 @@
 
             async revealAnswerOnly(answerIndex) {
                 try {
+                    // Get current state before transaction to preserve it in initial state
+                    const currentQuestionSnapshot = await this.db.ref('gameState/currentQuestion').once('value');
+                    const currentQuestionIndex = currentQuestionSnapshot.val() || 0;
+                    const currentRevealedSnapshot = await this.db.ref('gameState/revealedAnswers').once('value');
+                    const currentRevealedAnswers = currentRevealedSnapshot.val() || {};
+                    const currentTeamsSnapshot = await this.db.ref('teams').once('value');
+                    const currentTeams = currentTeamsSnapshot.val() || {};
+                    const currentGameStateSnapshot = await this.db.ref('gameState').once('value');
+                    const currentGameState = currentGameStateSnapshot.val() || {};
+                    
                     const result = await this.db.ref().transaction((root) => {
                         if (root === null) {
-                            const initialRoot = this.getInitialRootForGame(0);
-                            initialRoot.gameState.phase = 'round_over';
-                            initialRoot.gameState.revealedAnswers[`q0_a${answerIndex}`] = true;
+                            const initialRoot = this.getInitialRootForGame(currentQuestionIndex);
+                            initialRoot.gameState = {
+                                ...initialRoot.gameState,
+                                ...currentGameState,
+                                phase: 'round_over',
+                                revealedAnswers: {
+                                    ...currentRevealedAnswers,
+                                    [`q${currentQuestionIndex}_a${answerIndex}`]: true
+                                }
+                            };
+                            initialRoot.teams = currentTeams;
                             return initialRoot;
                         }
 
@@ -2214,22 +2248,29 @@
 
             // Listen for teams
             database.ref('teams').on('value', async (snapshot) => {
-                teams = snapshot.exists() ? snapshot.val() : { team1: null, team2: null };
-                updateTeamColors(teams);  // Apply colors from database
-                assignDefaultTeamColors(teams);  // Assign defaults if needed
-                updateTeamsDisplay();
-                updateAnswerButtons();
-                
-                // Auto-transition from registration to setup when both teams are present
-                if (teams.team1 && teams.team2) {
-                    // Check current phase from database to avoid race conditions
-                    const phaseSnapshot = await database.ref('gameState/phase').once('value');
-                    const currentPhase = phaseSnapshot.val() || 'registration';
-                    
-                    if (currentPhase === 'registration') {
-                        database.ref('gameState/phase').set('setup');
+                if (snapshot.exists() && snapshot.val()) {
+                    const newTeams = snapshot.val();
+                    // Only update if we have valid team data
+                    if (newTeams.team1 || newTeams.team2) {
+                        teams = newTeams;
+                        updateTeamColors(teams);  // Apply colors from database
+                        assignDefaultTeamColors(teams);  // Assign defaults if needed
+                        updateTeamsDisplay();
+                        updateAnswerButtons();
+                        
+                        // Auto-transition from registration to setup when both teams are present
+                        if (teams.team1 && teams.team2) {
+                            // Check current phase from database to avoid race conditions
+                            const phaseSnapshot = await database.ref('gameState/phase').once('value');
+                            const currentPhase = phaseSnapshot.val() || 'registration';
+                            
+                            if (currentPhase === 'registration') {
+                                database.ref('gameState/phase').set('setup');
+                            }
+                        }
                     }
                 }
+                // Don't clear teams on invalid data - preserve existing team names
             });
 
             // Listen for game phase
