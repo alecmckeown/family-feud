@@ -679,6 +679,12 @@
             database.ref('gameState/phase').on('value', (snapshot) => {
                 const phase = snapshot.val() || 'setup';
                 currentPhase = phase;
+                
+                // Clear strikes when returning to setup (new question)
+                if (phase === 'setup') {
+                    updateStrikesDisplay(0, null);
+                }
+                
                 updateQuestionVisibility(phase);
             });
 
@@ -754,7 +760,7 @@
         function updateStrikesDisplay(strikes, controllingTeam) {
             // Update stored values if provided
             if (strikes !== null && strikes !== undefined) currentStrikes = strikes;
-            if (controllingTeam !== undefined) currentControllingTeam = controllingTeam; // Allow null values
+            if (controllingTeam !== undefined) currentControllingTeam = controllingTeam;
 
             // Reset both teams to empty state first
             document.getElementById('team1-strikes').className = 'team-strikes empty';
@@ -762,17 +768,16 @@
             document.getElementById('team1-strikes-text').textContent = '❌❌❌';
             document.getElementById('team2-strikes-text').textContent = '❌❌❌';
 
-            // Only show strikes if we have both strikes > 0 AND a controlling team
-            if (currentStrikes > 0 && currentControllingTeam) {
+            // Always show strikes if we have them - use controlling team or default to team 1
+            if (currentStrikes > 0) {
+                const teamToShow = currentControllingTeam || 1;
                 const strikeSymbols = '❌'.repeat(currentStrikes);
-                const teamStrikesId = `team${currentControllingTeam}-strikes`;
-                const teamStrikesTextId = `team${currentControllingTeam}-strikes-text`;
+                const teamStrikesId = `team${teamToShow}-strikes`;
+                const teamStrikesTextId = `team${teamToShow}-strikes-text`;
                 
-                // Show active strikes for controlling team
                 document.getElementById(teamStrikesTextId).textContent = strikeSymbols;
                 document.getElementById(teamStrikesId).className = 'team-strikes';
             }
-            // If either strikes is 0 OR no controlling team, strikes remain cleared (handled by reset above)
         }
 
         function showCountdown(timeLeft) {

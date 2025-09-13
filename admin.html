@@ -1363,7 +1363,7 @@
                             gameState: {
                                 ...gameState,
                                 revealedAnswers: newRevealedAnswers,
-                                strikes: newPhase === 'round_over' ? 0 : gameState.strikes,
+                                strikes: gameState.strikes, // Keep strikes unchanged - they'll be reset when navigating to new question
                                 phase: newPhase,
                                 team1Score: newTeam1Score,
                                 team2Score: newTeam2Score,
@@ -1414,7 +1414,7 @@
                             // In steal phase, any strike ends the round
                             newPhase = 'round_over';
                             newBuzzer.controllingTeam = null;
-                            newStrikes_final = 0;
+                            newStrikes_final = newStrikes; // Keep strikes visible until new question
                         } else if (newStrikes >= 3) {
                             // Normal main_game behavior - 3 strikes needed
                             // In steal phase, controllingTeam stays as the team that struck out
