@@ -707,7 +707,7 @@
             width: 100%;
             padding: 18px 20px;
             margin-bottom: 8px;
-            border: none;
+            border: 2px solid transparent; /* Always have border space */
             border-radius: 12px;
             font-size: 16px;
             font-weight: bold;
@@ -718,6 +718,7 @@
             transition: all 0.2s ease;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             position: relative;
+            box-sizing: border-box; /* Include border in dimensions */
         }
         
         .answer-button-full:active {
@@ -738,7 +739,7 @@
             background: var(--disabled-color);
             color: rgba(255, 255, 255, 0.7);
             cursor: not-allowed;
-            border: 2px solid transparent;
+            /* Border stays transparent by default */
         }
         
         .answer-button-full.disabled.team1-revealed {
