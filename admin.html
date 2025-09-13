@@ -137,14 +137,6 @@
             transform: scale(0.98);
         }
         
-        .status-card {
-            background: rgba(255,255,255,0.1);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
         .current-question {
             background: linear-gradient(135deg, #2C5282 0%, #2D3748 100%);
             border: 2px solid #4A90E2;
@@ -577,18 +569,6 @@
             text-align: center;
         }
         
-        .buzz-winner {
-            font-size: 1.1em;
-            font-weight: bold;
-            color: #4CAF50;
-            margin-bottom: 5px;
-        }
-        
-        .buzz-time {
-            font-size: 0.9em;
-            opacity: 0.8;
-        }
-        
         .countdown-display {
             background: rgba(255, 193, 7, 0.2);
             border: 1px solid #FFC107;
@@ -948,22 +928,13 @@
         
         <!-- Game Controls -->
         <div class="game-controls" id="game-controls">
-            <div class="status-card" id="no-questions-message">
+            <div id="no-questions-message">
                 <div class="current-question">No Questions Loaded</div>
                 <div class="question-text">Click "⚠️ GAME CONTROL" below to load a question set</div>
             </div>
             
             <div class="current-question" id="question-status" style="display: none;">
                 <span class="question-counter">1/5:</span> Loading...
-            </div>
-            
-            <!-- Buzz Results Section -->
-            <div class="status-card" id="buzz-results-card" style="display: none;">
-                <div class="section-title">Face-off Results</div>
-                <div class="buzz-results" id="buzz-results" style="margin-top: 10px;">
-                    <div class="buzz-winner">Winner: <span id="buzz-winner-text"></span></div>
-                    <div class="buzz-time">Time: <span id="buzz-time-text"></span>ms</div>
-                </div>
             </div>
             
             <div class="answers-section">
@@ -2147,24 +2118,7 @@
         }
 
         function updateBuzzerDisplay() {
-            const buzzResultsCard = document.getElementById('buzz-results-card');
-            const buzzResults = document.getElementById('buzz-results');
-            
-            if (buzzerState.firstBuzz) {
-                const winnerTeam = buzzerState.firstBuzz.team;
-                const winnerName = winnerTeam === 1 ? 
-                    teams.team1?.name || 'Team 1' : 
-                    teams.team2?.name || 'Team 2';
-                
-                document.getElementById('buzz-winner-text').textContent = winnerName;
-                document.getElementById('buzz-time-text').textContent = buzzerState.firstBuzz.timestamp;
-                
-                if (buzzResults) buzzResults.style.display = 'block';
-                if (buzzResultsCard) buzzResultsCard.style.display = 'block';
-            } else {
-                if (buzzResults) buzzResults.style.display = 'none';
-                if (buzzResultsCard) buzzResultsCard.style.display = 'none';
-            }
+            // Buzzer display removed - no longer needed
         }
 
         function isTeamButtonEnabled(teamNumber) {
