@@ -65,10 +65,10 @@
             border-bottom: 2px solid rgba(255,255,255,0.2);
             z-index: 6;
             
-            /* CSS Grid centering - most reliable */
-            display: grid !important;
-            place-items: center !important;
-            text-align: center !important;
+            /* CSS Grid centering */
+            display: grid;
+            place-items: center;
+            text-align: center;
             padding: 20px 30px;
             
             /* Typography */
@@ -704,7 +704,6 @@
                 const questionText = currentQuestions[currentQuestionIndex]?.question || 'Loading...';
                 document.getElementById('current-question').textContent = questionText;
                 applyDynamicSizing(); // Apply dynamic sizing after text update
-                updateQuestionVisibility(currentPhase); // Apply visibility rules
                 rebuildAnswersBoard(); // Rebuild when question changes
             });
 
@@ -790,7 +789,7 @@
                                      phase === 'round_over';
             
             if (shouldShowQuestion) {
-                questionElement.style.display = 'block';
+                questionElement.style.display = 'grid';
             } else {
                 questionElement.style.display = 'none';
             }
