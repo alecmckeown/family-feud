@@ -2250,27 +2250,30 @@
             database.ref('teams').on('value', async (snapshot) => {
                 if (snapshot.exists() && snapshot.val()) {
                     const newTeams = snapshot.val();
-                    // Only update if we have valid team data
-                    if (newTeams.team1 || newTeams.team2) {
-                        teams = newTeams;
-                        updateTeamColors(teams);  // Apply colors from database
-                        assignDefaultTeamColors(teams);  // Assign defaults if needed
-                        updateTeamsDisplay();
-                        updateAnswerButtons();
+                    // Always update teams with valid data (this allows team unregistration)
+                    teams = newTeams;
+                    updateTeamColors(teams);  // Apply colors from database
+                    assignDefaultTeamColors(teams);  // Assign defaults if needed
+                    updateTeamsDisplay();
+                    updateAnswerButtons();
+                    
+                    // Auto-transition from registration to setup when both teams are present
+                    if (teams.team1 && teams.team2) {
+                        // Check current phase from database to avoid race conditions
+                        const phaseSnapshot = await database.ref('gameState/phase').once('value');
+                        const currentPhase = phaseSnapshot.val() || 'registration';
                         
-                        // Auto-transition from registration to setup when both teams are present
-                        if (teams.team1 && teams.team2) {
-                            // Check current phase from database to avoid race conditions
-                            const phaseSnapshot = await database.ref('gameState/phase').once('value');
-                            const currentPhase = phaseSnapshot.val() || 'registration';
-                            
-                            if (currentPhase === 'registration') {
-                                database.ref('gameState/phase').set('setup');
-                            }
+                        if (currentPhase === 'registration') {
+                            database.ref('gameState/phase').set('setup');
                         }
                     }
+                } else if (!teams || (!teams.team1 && !teams.team2)) {
+                    // Only clear teams if we don't have any teams loaded yet
+                    teams = { team1: null, team2: null };
+                    updateTeamsDisplay();
+                    updateAnswerButtons();
                 }
-                // Don't clear teams on invalid data - preserve existing team names
+                // Ignore invalid data during transactions if we already have teams
             });
 
             // Listen for game phase
